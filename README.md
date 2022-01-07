@@ -10,4 +10,7 @@ dwDCA is an attempt to implement "double-well" DCA, in which the data is fit a d
 All simulation code is written in C++ and has been successfully compiled by the author with C++17 and C++14 compilers. The code may not compile on every computer setup, may require modifications to source code or installation of additional libraries/compilers to compile, and may not be robust to all input parameters. The swDCA code has been tested for its ability to produce energy models which, when sampled, can reproduce the one- and two-site frequencies of the input MSA to within a user-defined accuracy. However, for very high accuracy (low error tolerance), the code may take infeasibly long to run. This may be especially true for longer protein sequences. Note that compilation (which can be achieved with the "make" command in the "swDCA" or "dwDCA" directories) and use require that the Armadillo linear algebra library for C++ be installed.
 
 Analysis scripts (located in the "scripts" subdirectories of "swDCA" and "dwDCA") are written in Python 3 and bash. 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 34098825f8839ad6b3ab097846d2444bdb7500ab
