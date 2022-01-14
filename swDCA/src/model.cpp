@@ -50,6 +50,80 @@ double model::get_energy(std::vector<int> &seq){
   return energy;
 }
 
+double model::get_delta_energy(std::vector<int> &seq, int m, int r){
+
+  double dE = 0.;
+
+  dE -= h(m,r) - h(m,seq[m]);
+
+  for (int i=0; i<m; i++) {
+      int index = (N-1)*i-i*(i+1)/2+m-1;
+      if(symmetrize_on) {
+	      dE -= (J(seq[i], r, index) + J(r, seq[i], index))/2;
+	      dE += (J(seq[i], seq[m], index) + J(seq[m], seq[i], index))/2;
+      } else { 
+	      dE -= J(seq[i], r, index);
+	      dE += J(seq[i], seq[m], index);
+      }
+  }
+
+  for(int j=(m+1); j<N; j++){
+      int index = (N-1)*m-m*(m+1)/2+j-1;
+      if(symmetrize_on) {
+	      dE -= (J(r, seq[j], index) + J(seq[j], r, index))/2;
+	      dE += (J(seq[m], seq[j], index) + J(seq[j], seq[m], index))/2;
+      } else {
+	      dE -= J(r, seq[j], index);
+	      dE += J(seq[m], seq[j], index);
+      }
+  }
+
+  return dE;
+}
+
+
+/*
+ * this version is not any faster; presumably the compiler takes 
+ * care of this already
+ *
+double model::get_delta_energy(std::vector<int> &seq, int m, int r){
+
+  double dE = 0.;
+
+  dE -= h(m,r) - h(m,seq[m]);
+
+  int seqm = seq[m];
+  int save1 = m-1;
+  int save2 = N-1;
+  for (int i=0; i<m; i++) {
+      int seqi = seq[i];
+      int index = save2*i-i*(i+1)/2+save1;
+      if(symmetrize_on) {
+	      dE -= (J(seqi, r, index) + J(r, seqi, index))/2;
+	      dE += (J(seqi, seqm, index) + J(seqm, seqi, index))/2;
+      } else { 
+	      dE -= J(seqi, r, index);
+	      dE += J(seqi, seqm, index);
+      }
+  }
+
+  int save = (N-1)*m-m*(m+1)/2-1;
+  for(int j=(m+1); j<N; j++){
+      int seqj = seq[j];
+      //int index = (N-1)*m-m*(m+1)/2+j-1;
+      int index = save+j;
+      if(symmetrize_on) {
+	      dE -= (J(r, seqj, index) + J(seqj, r, index))/2.;
+	      dE += (J(seqm, seqj, index) + J(seqj, seqm, index))/2.;
+      } else {
+	      dE -= J(r, seqj, index);
+	      dE += J(seqm, seqj, index);
+      }
+  }
+
+  return dE;
+}
+*/
 
 double model::get_Z(){
 

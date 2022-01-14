@@ -76,6 +76,7 @@ void run_mc_traj(model &model, int n){
 
     //Production
     int dump_cnt=0;
+    // PUT OpenMP pragma around this block to do REMD...
     for(int t=0; t<n/nseed; t++){
       //std::cout << "Pass number " << t << std::endl;
       if(t%dump_freq==0){
@@ -140,12 +141,15 @@ void do_sweep(model &model, std::vector<int> &seq){
     unsigned long int s = gsl_rng_uniform_int(rg, (unsigned long int)model.N);
     unsigned long int r = gsl_rng_uniform_int(rg, (unsigned long int)model.q);
     while((int)r==seq[s]) r = gsl_rng_uniform_int(rg, (unsigned long int)model.q);
-    double prob = std::min(1.0, get_boltzmann(model, seq, (int)s, (int)r));
+    //double prob = std::min(1.0, get_boltzmann(model, seq, (int)s, (int)r));
+    double dE = model.get_delta_energy(seq, (int)s, (int)r);  
+    double prob = std::min(1.0, exp(-dE));
     double xsi = gsl_rng_uniform(rg);
     if(prob>xsi) seq[s] = (int)r; 
   }
 }
 
+/*
 double get_boltzmann(model &model, std::vector<int> &seq, int m, int r){
 
   double E1 = model.get_energy(seq);  
@@ -155,5 +159,22 @@ double get_boltzmann(model &model, std::vector<int> &seq, int m, int r){
   seq[m] = old;
   
   return exp(-(E2-E1));
+}
+*/
+
+double get_boltzmann(model &model, std::vector<int> &seq, int m, int r){
+
+  //double E1 = model.get_energy(seq);  
+  //int old = seq[m];
+  //seq[m] = r;
+  //double E2 = model.get_energy(seq); 
+  //seq[m] = old;
+  //double dE = E2-E1;
+  double dE = model.get_delta_energy(seq, m, r);  
+  
+  //double dE_old = E2-E1;
+  //fprintf(stdout,"dE_old=%f ; dE_new=%f\n",dE_old,dE);
+  
+  return exp(-dE);
 }
 

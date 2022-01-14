@@ -18,15 +18,15 @@ CXX := g++
 SHELL = /bin/sh
 
 # Flags to pass to the compiler; per the reccomendations of the GNU Scientific Library
-CXXFLAGS:= -std=c++17 -Wextra -pedantic -Wall -W -Wmissing-declarations -Wuninitialized -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -fshort-enums -fno-common -I$(ARMA_DIR)/include -m64
-
+CXXFLAGS:= -std=c++17 -Wextra -pedantic -Wall -W -Wmissing-declarations -Wuninitialized -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -fshort-enums -fno-common -m64 #-I$(ARMA_DIR)/include
 # Compiler flags controling optimization levels. Use -O3 for full optimization,
 # but make sure your results are consistent
 # -g includes debugging information. You can also add -pg here for profiling 
-OPTFLAGS:= -g -O2
+PROFILE=-pg
+OPTFLAGS:=$(PROFILE) -O2
 
 # Flags to pass to the linker; -lm links in the standard c math library
-LDFLAGS:= -lm -lgsl -lgslcblas -llapack -lblas -larmadillo -L$(ARMA_DIR)
+LDFLAGS:= -lm -lgsl -lgslcblas -llapack -lblas -larmadillo $(PROFILE) #-L$(ARMA_DIR)
 
 # Variable to compose names of object files from the names of sources
 OBJECTS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SOURCES))
