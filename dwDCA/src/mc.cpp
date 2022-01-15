@@ -185,13 +185,46 @@ void run_mc_traj(model &model, int n){
 
 void do_sweep(model &model, std::vector<int> &seq){
 
-  for(int i=0; i<model.N; i++){
-    unsigned long int s = gsl_rng_uniform_int(rg, (unsigned long int)model.N);
-    unsigned long int r = gsl_rng_uniform_int(rg, (unsigned long int)model.q);
-    while((int)r==seq[s]) r = gsl_rng_uniform_int(rg, (unsigned long int)model.q);
-    double prob = std::min(1.0, get_boltzmann(model, seq, (int)s, (int)r));
-    double xsi = gsl_rng_uniform(rg);
-    if(prob>xsi) seq[s] = (int)r; 
+  if (model.nwell == 1) {
+	for(int i=0; i<model.N; i++){
+	  unsigned long int s = gsl_rng_uniform_int(rg, (unsigned long int)model.N);
+	  unsigned long int r = gsl_rng_uniform_int(rg, (unsigned long int)model.q);
+	  while((int)r==seq[s]) r = gsl_rng_uniform_int(rg, (unsigned long int)model.q);
+	  double dE = model.get_delta_energy_single(seq, 1, (int)s, (int)r);
+	  double prob = std::min(1.0, exp(-dE));
+	  /* validation code 
+          double prob_orig = std::min(1.0, get_boltzmann(model, seq, (int)s, (int)r));// remove
+	  fprintf(stdout,"prob = %f; prob_orig = %f\n", prob, prob_orig); // remove
+	  */
+	  double xsi = gsl_rng_uniform(rg);
+	  if(prob>xsi) seq[s] = (int)r; 
+	}
+  } else {
+	// slightly more complicated because mixing depends on total energies...
+	// assume 2 wells, as elsewhere.
+  	double E1, E2, dE1, dE2, Eold, Enew; 
+  	E1 = model.get_energy_single(seq, 1);
+  	E2 = model.get_energy_single(seq, 2);
+        for(int i=0; i<model.N; i++){
+          unsigned long int s = gsl_rng_uniform_int(rg, (unsigned long int)model.N);
+          unsigned long int r = gsl_rng_uniform_int(rg, (unsigned long int)model.q);
+          while((int)r==seq[s]) r = gsl_rng_uniform_int(rg, (unsigned long int)model.q);
+          dE1 = model.get_delta_energy_single(seq, 1, (int)s, (int)r);
+          dE2 = model.get_delta_energy_single(seq, 2, (int)s, (int)r);
+	  Eold = -model.Tmix*log(exp(-E1/model.Tmix)+exp(-E2/model.Tmix)); 
+	  Enew = -model.Tmix*log(exp(-(E1+dE1)/model.Tmix)+exp(-(E2+dE2)/model.Tmix)); 
+          double prob = std::min(1.0, exp(-(Enew-Eold)));
+	  /* validation code 
+          double prob_orig = std::min(1.0, get_boltzmann(model, seq, (int)s, (int)r));// remove
+	  fprintf(stdout,"prob = %f; prob_orig = %f\n", prob, prob_orig); // remove
+	  */
+          double xsi = gsl_rng_uniform(rg);
+          if(prob>xsi) {
+		  seq[s] = (int)r; 
+		  E1 += dE1; 
+		  E2 += dE2; 
+	  }
+        }
   }
 }
 

@@ -96,7 +96,8 @@ int main(int argc, char *argv[]){
 
   //Define data output directory
   output_dir = "data/";
-  scratch_dir = "/scratch/frechettelb/protein_evolution/dwDCA/data/";
+  //scratch_dir = "/scratch/frechettelb/protein_evolution/dwDCA/data/";
+  scratch_dir = "data/";
 
   output_dir += folder_name + "/";
   scratch_dir += folder_name + "/";
