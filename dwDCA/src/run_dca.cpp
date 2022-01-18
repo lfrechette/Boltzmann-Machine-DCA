@@ -50,6 +50,7 @@ double gamma_mom;
 double cutoff_freq;
 bool adaptive_stepsize_on;
 bool cd_on;
+bool verbose;
 int nwell;
 double Tmix=1.0;
 double delta=0.2; //reweighting threshold
@@ -261,6 +262,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
       std::cout << "Cross-entropy: " << entropy[niter] << std::endl;
     }
 */
+    if (verbose) {
     //Dump current statistics and parameters to file
     mymodel.mom1.save(scratch_dir + "stat_MC_1p_" + std::to_string(niter) + ".txt", arma::arma_ascii);
     mymodel.mom2.save(scratch_dir + "stat_MC_2p_" + std::to_string(niter) + ".txt",arma::arma_ascii);
@@ -269,6 +271,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
     if(mymodel.nwell==2){
       mymodel.h2.save(scratch_dir + "h2_" + std::to_string(niter) + ".txt", arma::arma_ascii);
       mymodel.J2.save(scratch_dir + "J2_" + std::to_string(niter) + ".txt",arma::arma_ascii);
+    }
     }
     
     /*** Compute derivatives ***/
@@ -308,6 +311,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
       mymodel.J2 += change_J2;
     }
 
+    if (verbose) {
    //Dump derivatives to file
     dh1.save(scratch_dir + "dh1_" + std::to_string(niter) + ".txt", arma::arma_ascii);
     dJ1.save(scratch_dir + "dJ1_" + std::to_string(niter) + ".txt", arma::arma_ascii);
@@ -315,6 +319,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
     if(mymodel.nwell==2){
       dh2.save(scratch_dir + "dh2_" + std::to_string(niter) + ".txt", arma::arma_ascii);
       dJ2.save(scratch_dir + "dJ2_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+    }
     }
 
     //Update learning rates
@@ -431,6 +436,7 @@ void read_inputs(std::string name){
       if(key.compare("Tmix")==0) Tmix = std::stof(value);
       if(key.compare("delta")==0) delta = std::stof(value);
       if(key.compare("mc_init")==0) mc_init = value;
+      if(key.compare("verbose")==0) verbose = std::stoi(value);
     }
     std::cout << std::endl;
     file.close();
