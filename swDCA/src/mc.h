@@ -9,6 +9,7 @@
 //Headers
 #include <stdlib.h>
 #include <armadillo>
+#include <gsl/gsl_rng.h>
 #include "model.h"
 
 //Variables
@@ -20,12 +21,13 @@ extern int print_freq;
 /** Run an MC Trajectory.
  * @param model, The model object.
  * @param nstp, Number of steps in trajectory.*/
-void run_mc_traj(model &model, int nstp);
+void run_mc_traj(model &model, int nstp, int nrep);
 
 /** Perform a sweep (model.N attempted MC moves)
  * @param model, The model object.
  * @param seq, Protein sequence. */
-void do_sweep(model &model, std::vector<int> &seq);
+//void do_sweep(model &model, std::vector<int> &seq);
+void do_sweep(model &model, std::vector<int> &seq, int T, gsl_rng *rng);
 
 /** Get the Boltzmann factor associated with a single-site mutation.
  * @param model, The model object.

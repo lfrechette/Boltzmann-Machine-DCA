@@ -7,7 +7,7 @@ extern gsl_rng *rg;
 
 void init_default(model &mymodel, arma::mat &msa_freq);
 
-void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr);
+void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nrep);
 
 void read_inputs(std::string in_name);
 
