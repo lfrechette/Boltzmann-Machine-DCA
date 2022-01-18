@@ -29,7 +29,7 @@ std::string gb_str = "MTYKLILNGKTLKGETTTEAVDAATAEKVFKQYANDNGVDGEWTYDDATKTFTVTE";
 /*** Methods ***/
 /***************/
 
-void run_mc_traj(model &model, int n){
+void run_mc_traj(model &model, int n, int nr){
 
   int dump_freq = n/model.num_seqs;
   int nseed=1;
@@ -87,27 +87,103 @@ void run_mc_traj(model &model, int n){
     if(model.mc_init=="random"){
     for(int t=0;  t<nequil; t++){
       //std::cout << "Equilibrating...Pass " << t << ", energy=" << model.get_energy(seq) << std::endl;
-      do_sweep(model, seq);
+      do_sweep(model, seq, 1.0, rg);
     }
     }
 
     //Production
     int dump_cnt=0;
+
+    double *Tsamples, *Energies;
+    int *T2rep;
+    long int Attempts, *Successes;
+    double Tratio = 1.2 ; // hard-coded for now...
+    int T0_ID = 0;
+    int true_nr;
+
+    Tsamples = new double[nr];
+    Energies = new double[nr];
+    T2rep = new int[nr];
+    Successes = new long int[nr];
+
+    for (int R=0; R<nr; R++) {
+            if (R==0) {
+        	    Tsamples[R] = 1.0;
+            } else {
+        	    Tsamples[R] = Tsamples[R-1]*Tratio;
+            }
+	    T2rep[R] = R;
+	    Successes[R] = 0;
+    }
+
+    omp_set_num_threads(nr);
+#pragma omp parallel
+{
+
+    int ID = omp_get_thread_num();
+    gsl_rng *my_rng = rg_replica[ID];  
+    double my_T = Tsamples[T2rep[ID]];
+    std::vector<int> my_seq = seq;
+    //model local_model(Model.N,Model.q,Model.lambda,Model.symmetrize_on,Model.mc_init);
+    if (ID==T0_ID) {
+	    true_nr = omp_get_num_threads();
+	    fprintf(stdout,"Number of threads allocated = %i\n",true_nr);
+	    if (true_nr != nr) { // we could code for this but it'd be more complicated
+		    fprintf(stderr, "Too few threads (%i/%i) allocated, quitting!\n",true_nr,nr);
+		    exit(1);
+	    }
+    }
+
+
     for(int t=0; t<n/nseed; t++){
       //std::cout << "Pass number " << t << std::endl;
       if(t==n/nseed/2 && model.mc_init=="gagb"){
-        for(int i=0; i<model.N; i++) seq[i] = gb[i];
+        for(int i=0; i<model.N; i++) my_seq[i] = gb[i];
       }
-      if(t%dump_freq==0){
-        std::stringstream seqstr;
-        for(int j=0; j<seq.size(); j++){
-          seqstr << number_to_letter(seq[j],model.q);
-        }
-        model.seqs[dump_cnt] = seqstr.str();
-        dump_cnt++;
+
+      if (ID==T0_ID) {
+	      if(t%dump_freq==0){
+		      std::stringstream seqstr;
+		      for(int j=0; j<seq.size(); j++){
+			      seqstr << number_to_letter(seq[j],model.q);
+		      }
+		      model.seqs[dump_cnt] = seqstr.str();
+		      dump_cnt++;
+	      }
       }
-      do_sweep(model, seq);
-      model.avg_ene += model.get_energy(seq); 
+
+      do_sweep(model, my_seq, my_T, my_rng);
+
+      Energies[ID] = model.get_energy(my_seq); 
+
+#pragma omp barrier // need all energies before proceeding!
+
+      if (ID==0) {
+	      int off = t%2;
+	      for (int R=off; R<nr-1; R+=2) {
+		      int R1 = T2rep[R]; 
+		      //fprintf(stdout,"E[%i] = %f\n",R,Energies[R1]);
+		      int R2 = T2rep[R+1]; 
+		      double expo = exp(-(1./Tsamples[R1]-1./Tsamples[R2])*(Energies[R2]-Energies[R1]));
+    		      double prob = std::min(1.0, expo);
+    		      double xsi = gsl_rng_uniform(my_rng);
+    		      if(prob>xsi) {
+			      int tmp = T2rep[R];
+			      T2rep[R] = T2rep[R+1];
+			      T2rep[R+1] = tmp;
+			      Successes[R]++;
+		      }
+	      }
+	      T0_ID = T2rep[0];
+	      Attempts += 1;
+      }
+
+#pragma omp barrier 
+
+      if (ID==T0_ID) {
+	      seq = my_seq;
+	      model.avg_ene += Energies[T0_ID];
+      //model.avg_ene += model.get_energy(seq); 
       //Update moments
       for(int i=0; i<model.N; i++){
         model.mom1(i,seq[i])++;
@@ -157,6 +233,11 @@ void run_mc_traj(model &model, int n){
       if((t+1)%(n/nseed/nblock)==0){
         block_cnt++;
       }
+      }
+    }
+} // end omp parallel
+    for (int R=0; R<nr-1; R++) {
+	    fprintf(stdout, "Fraction successful moves for %i <--> %i = %8.3f\n",R,R+1,double(Successes[R])/(double(Attempts)/2.));
     }
   } 
  
@@ -183,20 +264,20 @@ void run_mc_traj(model &model, int n){
   
 }
 
-void do_sweep(model &model, std::vector<int> &seq){
+void do_sweep(model &model, std::vector<int> &seq, int T, gsl_rng *rng){
 
   if (model.nwell == 1) {
 	for(int i=0; i<model.N; i++){
-	  unsigned long int s = gsl_rng_uniform_int(rg, (unsigned long int)model.N);
-	  unsigned long int r = gsl_rng_uniform_int(rg, (unsigned long int)model.q);
-	  while((int)r==seq[s]) r = gsl_rng_uniform_int(rg, (unsigned long int)model.q);
+	  unsigned long int s = gsl_rng_uniform_int(rng, (unsigned long int)model.N);
+	  unsigned long int r = gsl_rng_uniform_int(rng, (unsigned long int)model.q);
+	  while((int)r==seq[s]) r = gsl_rng_uniform_int(rng, (unsigned long int)model.q);
 	  double dE = model.get_delta_energy_single(seq, 1, (int)s, (int)r);
-	  double prob = std::min(1.0, exp(-dE));
+	  double prob = std::min(1.0, exp(-dE/T));
 	  /* validation code 
           double prob_orig = std::min(1.0, get_boltzmann(model, seq, (int)s, (int)r));// remove
 	  fprintf(stdout,"prob = %f; prob_orig = %f\n", prob, prob_orig); // remove
 	  */
-	  double xsi = gsl_rng_uniform(rg);
+	  double xsi = gsl_rng_uniform(rng);
 	  if(prob>xsi) seq[s] = (int)r; 
 	}
   } else {
@@ -206,19 +287,19 @@ void do_sweep(model &model, std::vector<int> &seq){
   	E1 = model.get_energy_single(seq, 1);
   	E2 = model.get_energy_single(seq, 2);
         for(int i=0; i<model.N; i++){
-          unsigned long int s = gsl_rng_uniform_int(rg, (unsigned long int)model.N);
-          unsigned long int r = gsl_rng_uniform_int(rg, (unsigned long int)model.q);
-          while((int)r==seq[s]) r = gsl_rng_uniform_int(rg, (unsigned long int)model.q);
+          unsigned long int s = gsl_rng_uniform_int(rng, (unsigned long int)model.N);
+          unsigned long int r = gsl_rng_uniform_int(rng, (unsigned long int)model.q);
+          while((int)r==seq[s]) r = gsl_rng_uniform_int(rng, (unsigned long int)model.q);
           dE1 = model.get_delta_energy_single(seq, 1, (int)s, (int)r);
           dE2 = model.get_delta_energy_single(seq, 2, (int)s, (int)r);
 	  Eold = -model.Tmix*log(exp(-E1/model.Tmix)+exp(-E2/model.Tmix)); 
 	  Enew = -model.Tmix*log(exp(-(E1+dE1)/model.Tmix)+exp(-(E2+dE2)/model.Tmix)); 
-          double prob = std::min(1.0, exp(-(Enew-Eold)));
+          double prob = std::min(1.0, exp(-(Enew-Eold)/T));
 	  /* validation code 
           double prob_orig = std::min(1.0, get_boltzmann(model, seq, (int)s, (int)r));// remove
 	  fprintf(stdout,"prob = %f; prob_orig = %f\n", prob, prob_orig); // remove
 	  */
-          double xsi = gsl_rng_uniform(rg);
+          double xsi = gsl_rng_uniform(rng);
           if(prob>xsi) {
 		  seq[s] = (int)r; 
 		  E1 += dE1; 

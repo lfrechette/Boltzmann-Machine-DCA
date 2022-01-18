@@ -34,9 +34,11 @@ std::string output_dir;
 std::string folder_name;
 
 gsl_rng *rg;
+gsl_rng **rg_replica;
 
 int max_iter;
 int mc_steps;
+int nrep; 
 double eps0_h;
 double eps0_J;
 double eps_inc;
@@ -157,7 +159,7 @@ int main(int argc, char *argv[]){
   //model.convert_to_zero_sum();
 
   //Run DCA
-  fit(model,msa_freq,msa_corr,msa_seqs,weights);
+  fit(model,msa_freq,msa_corr,msa_seqs,weights,nrep);
 
   model.convert_to_zero_sum();
 
@@ -167,7 +169,7 @@ int main(int argc, char *argv[]){
   return 1;
 }
 
-void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<int> msa_seqs, std::vector<double> weights){
+void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<int> msa_seqs, std::vector<double> weights, int nr){
 
   bool converged = false;
   int niter=0;
@@ -215,7 +217,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
   while(!converged){
 
     std::cout << std::endl << "iteration " << niter << std::endl;
-    run_mc_traj(mymodel,mc_steps);
+    run_mc_traj(mymodel,mc_steps,nr);
     avg_energies[niter] = mymodel.avg_ene;
     std::cout << "Avg. energy: " << avg_energies[niter] << std::endl;
     print_seqs(mymodel, scratch_dir + "seqs_" + std::to_string(niter) + ".txt");
@@ -401,6 +403,8 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
 
 void read_inputs(std::string name){
 
+  nrep=1;
+  verbose=false;
   //Adapted from https://stackoverflow.com/questions/7868936/read-file-line-by-line-using-ifstream-in-c
   std::ifstream file(name);
   if(file.is_open()){
@@ -436,6 +440,7 @@ void read_inputs(std::string name){
       if(key.compare("Tmix")==0) Tmix = std::stof(value);
       if(key.compare("delta")==0) delta = std::stof(value);
       if(key.compare("mc_init")==0) mc_init = value;
+      if(key.compare("nrep")==0) nrep = std::stoi(value);
       if(key.compare("verbose")==0) verbose = std::stoi(value);
     }
     std::cout << std::endl;
