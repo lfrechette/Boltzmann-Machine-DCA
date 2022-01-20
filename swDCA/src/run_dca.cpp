@@ -113,6 +113,11 @@ int main(int argc, char *argv[]){
   msa_freq.save(scratch_dir + "stat_align_1p.txt", arma::arma_ascii);
   msa_corr.save(scratch_dir + "stat_align_2p.txt", arma::arma_ascii);
 
+  std::cout << "msa frequencies:" << std::endl;
+  std::cout << msa_freq << std::endl;
+  std::cout << "msa correlations" << std::endl;
+  std::cout << msa_corr << std::endl;
+
   //Initialize parameters
   if(input_name=="none") init_default(model, msa_freq);
   else read_params(model,input_name); 
@@ -131,11 +136,33 @@ int main(int argc, char *argv[]){
 */
   model.convert_to_zero_sum();
 
+  if(model.N==2){
+    std::cout << "h:" << std::endl;
+    std::cout << model.h << std::endl;
+    std::cout << "J:" << std::endl;
+    std::cout << model.J << std::endl;
+  }
+
   //Run DCA
   fit(model,msa_freq,msa_corr);
 
+  if(model.N==2){
+    std::cout << "h:" << std::endl;
+    std::cout << model.h << std::endl;
+    std::cout << "J:" << std::endl;
+    std::cout << model.J << std::endl;
+  }
+
   //Ensure parameters are in zero-sum gauge
-  //model.convert_to_zero_sum();
+  model.convert_to_zero_sum();
+
+  std::cout << "After zero-sum conversion:" << std::endl;
+  if(model.N==2){
+    std::cout << "h:" << std::endl;
+    std::cout << model.h << std::endl;
+    std::cout << "J:" << std::endl;
+    std::cout << model.J << std::endl;
+  }
 
   //Print parameters to file
   print_params(model,output_dir+out_name);

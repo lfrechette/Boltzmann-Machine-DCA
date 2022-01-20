@@ -76,11 +76,35 @@ double model::get_Z(){
 }
 
 void model::convert_to_zero_sum(){
+
+  std::cout << "Converting to zero sum gauge..." << std::endl;
   
   for(int i=0; i<N; i++){
     double sum=0;
     for(int a=0; a<q; a++) sum += h(i,a);
     for(int a=0; a<q; a++) h(i,a) -= sum/q;
+    for(int a=0; a<q; a++){
+      for(int q1=0; q1<q; q1++){
+        for(int j=0; j<N; j++){
+          if(j!=i){
+            if(j>i){
+              int index = (N-1)*i-i*(i+1)/2+j-1;
+              h(i,a) += J(a,q1,index)/q;
+              for(int q2=0; q2<q; q2++){
+                h(i,a) -= J(q1,q2,index)/(q*q);
+              }
+            }
+            else{
+              int index = (N-1)*j-j*(j+1)/2+i-1;
+              h(i,a) += J(q1,a,index)/q;
+              for(int q2=0; q2<q; q2++){
+                h(i,a) -= J(q1,q2,index)/(q*q);
+              }
+            }
+          }
+        }
+      }
+    }
   }
   for(int i=0; i<N-1; i++){
     for(int j=i+1; j<N; j++){
