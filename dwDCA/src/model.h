@@ -16,6 +16,7 @@ class model {
     int N; //Length of sequences
     int q; //Number of possible states (residue types)
     double lambda; //l2 regularization constant
+    bool symmetrize_on;
     double avg_ene; //Average energy estimated by most recent MC run
     int num_seqs;
     std::vector<std::string> seqs; //Sample of sequences obtained by most recent MC run
@@ -31,7 +32,7 @@ class model {
 
     //Constructors
     model();
-    model(int N1, int q1, int nwell1, double lam, double Tm, std::string mc_init1);
+    model(int N1, int q1, int nwell1, double lam, bool symon, double Tm, std::string mc_init1);
     //Destructor
     ~model();
 

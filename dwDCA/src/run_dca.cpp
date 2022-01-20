@@ -28,6 +28,7 @@ std::string out_name;
 std::string input_name;
 std::string conf_name;
 std::string mc_init;
+std::string param_init;
 
 std::string scratch_dir;
 std::string output_dir;
@@ -49,6 +50,7 @@ double lambda;
 double gamma_mom;
 double cutoff_freq;
 bool adaptive_stepsize_on;
+bool symmetrize_on;
 bool cd_on;
 int nwell;
 double Tmix=1.0;
@@ -88,15 +90,15 @@ int main(int argc, char *argv[]){
   nseq = msa_seqs.size()/N;
   std::cout << nseq << " sequences" << std::endl;
   std::cout << "Tmix: " << Tmix << std::endl;
-  model model(N, q, nwell, lambda, Tmix, mc_init);
+  model model(N, q, nwell, lambda, symmetrize_on, Tmix, mc_init);
   std::cout << model.mc_init << std::endl;
   arma::mat msa_freq(model.N,model.q,arma::fill::ones);
   arma::cube msa_corr(model.q, model.q, model.N*(model.N-1)/2,arma::fill::zeros);
-  msa_freq = msa_freq/21.0;
+  //msa_freq = msa_freq/21.0;
 
   //Define data output directory
   output_dir = "data/";
-  scratch_dir = "/scratch/frechettelb/protein_evolution/dwDCA/data/";
+  scratch_dir = "/data/frechettelb/protein_evolution/dwDCA/data/";
 
   output_dir += folder_name + "/";
   scratch_dir += folder_name + "/";
@@ -106,10 +108,17 @@ int main(int argc, char *argv[]){
 
   //Get frequencies and pair correlations from MSA
   std::vector<double> weights = get_weights(msa_seqs, nseq, delta);
-  fill_freq(msa_seqs, weights, msa_freq, msa_corr, nseq);
+  fill_freq(msa_seqs, weights, msa_freq, msa_corr, nseq, symmetrize_on);
   std::string msa_stats_2 = scratch_dir + "/stat_align_2p.txt";
   msa_freq.save(scratch_dir + "stat_align_1p.txt", arma::arma_ascii);
   msa_corr.save(scratch_dir + "stat_align_2p.txt", arma::arma_ascii);
+
+  if(N==2){
+    std::cout << "msa frequencies:" << std::endl;
+    std::cout << msa_freq << std::endl;
+    std::cout << "msa correlations" << std::endl;
+    std::cout << msa_corr << std::endl;
+  }
 
   //Initialize parameters
   if(input_name=="none"){
@@ -124,14 +133,25 @@ int main(int argc, char *argv[]){
     if(model.nwell==2){
       //Make initial parameters different for the two wells
       //by assigning half the fields to one well and half to the other.
-      for(int i=0; i<model.N/2; i++){
-        for(int a=0; a<model.q; a++){
-          model.h1(i,a) = log(msa_freq(i,a)+0.0001);
+      if(param_init=="half"){
+        std::cout << "HALF" << std::endl;
+        for(int i=0; i<model.N/2; i++){
+          for(int a=0; a<model.q; a++){
+            model.h1(i,a) = log(msa_freq(i,a)+0.0001);
+          }
+        }
+        for(int i=model.N/2; i<model.N; i++){
+          for(int a=0; a<model.q; a++){
+            model.h2(i,a) = log(msa_freq(i,a)+0.0001);
+          }
         }
       }
-      for(int i=model.N/2; i<model.N; i++){
-        for(int a=0; a<model.q; a++){
-          model.h2(i,a) = log(msa_freq(i,a)+0.0001);
+      if(param_init=="all_in_one"){
+        std::cout << "all_in_one" << std::endl;
+        for(int i=0; i<model.N; i++){
+          for(int a=0; a<model.q; a++){
+            model.h1(i,a) = log(msa_freq(i,a)+0.0001);
+          }
         }
       }
     }
@@ -140,24 +160,22 @@ int main(int argc, char *argv[]){
     read_params(model,input_name);
   }
 
-  /***TEST FOR SW TOY MODEL--- COMMENT OUT WHEN RUNNING***/
-/*
-  msa_freq(0,0)=0.5;
-  msa_freq(0,1)=0.5;
-  msa_freq(1,0)=0.5;
-  msa_freq(0,1)=0.5;
-  msa_corr(0,0,0)=0.440399;
-  msa_corr(0,1,0)=0.059601;
-  msa_corr(1,0,0)=0.059601;
-  msa_corr(1,1,0)=0.440399;
-*/
   //Ensure parameters are in zero-sum gauge
   //model.convert_to_zero_sum();
 
   //Run DCA
   fit(model,msa_freq,msa_corr,msa_seqs,weights);
 
-  model.convert_to_zero_sum();
+  if(model.N==2){
+    std::cout << "h1:" << std::endl;
+    std::cout << model.h1 << std::endl;
+    std::cout << "h2:" << std::endl;
+    std::cout << model.h2 << std::endl;
+    std::cout << "J1:" << std::endl;
+    std::cout << model.J1 << std::endl;
+    std::cout << "J2:" << std::endl;
+    std::cout << model.J2 << std::endl;
+  }
 
   //Print parameters to file
   print_params(model,output_dir+out_name);
@@ -287,10 +305,26 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
 
       fill_ene_weighted_freq(msa_seqs, weights, msa_freq1, msa_freq2, msa_corr1, msa_corr2, mymodel, weights.size());
 
+      if(mymodel.N==2){
+        std::cout << "msa freqs:" << std::endl;
+        std::cout << msa_freq1 << std::endl;
+        std::cout << msa_freq2 << std::endl;
+        std::cout << "msa corrs:" << std::endl;
+        std::cout << msa_corr1 << std::endl;
+        std::cout << msa_corr2 << std::endl;
+      }
+
       dh1 = (msa_freq1-mymodel.mom1_ene1 - 2*mymodel.lambda*mymodel.h1);
       dJ1 = (msa_corr1-mymodel.mom2_ene1 - 2*mymodel.lambda*mymodel.J1);
       dh2 = (msa_freq2-mymodel.mom1_ene2 - 2*mymodel.lambda*mymodel.h2);
       dJ2 = (msa_corr2-mymodel.mom2_ene2 - 2*mymodel.lambda*mymodel.J2);
+
+      if(mymodel.N==2){
+        std::cout << "dJ1:" << std::endl;
+        std::cout << dJ1 << std::endl;
+        std::cout << "dJ2:" << std::endl;
+        std::cout << dJ2 << std::endl;
+      }
 
       change_h1 = gamma_mom*change_h1 + alpha_h1%dh1;
       change_J1 = gamma_mom*change_J1 + alpha_J1%dJ1;
@@ -334,9 +368,6 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
             if(alpha_h2(i,a)>eps_max_h) alpha_h2(i,a)=eps_max_h;
             if(alpha_h2(i,a)<eps_min_h) alpha_h2(i,a)=eps_min_h;
           }
-          //Update gradient
-          dh1_prev(i,a) = dh1(i,a);
-          if(mymodel.nwell==2) dh2_prev(i,a) = dh2(i,a);
         }
       }
       for(int i=0; i<mymodel.N-1; i++){
@@ -358,13 +389,18 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
                 if(alpha_J2(a,b,index)>eps_max_J_N/mymodel.N) alpha_J2(a,b,index)=eps_max_J_N/mymodel.N;
                 if(alpha_J2(a,b,index)<eps_min_J) alpha_J2(a,b,index)=eps_min_J;
               }
-              //Update gradient
-              dJ1_prev(a,b,index) = dJ1(a,b,index);
-              if(mymodel.nwell==2) dJ2_prev(a,b,index) = dJ2(a,b,index);
             }
           }
         }
       }
+    }
+
+    //Update previous step gradient
+    dh1_prev = dh1;
+    dJ1_prev = dJ1;
+    if(mymodel.nwell==2){
+      dh2_prev = dh2;
+      dJ2_prev = dJ2;
     }
     
     niter++;
@@ -430,6 +466,8 @@ void read_inputs(std::string name){
       if(key.compare("Tmix")==0) Tmix = std::stof(value);
       if(key.compare("delta")==0) delta = std::stof(value);
       if(key.compare("mc_init")==0) mc_init = value;
+      if(key.compare("param_init")==0) param_init = value;
+      if(key.compare("symmetrize_on")==0) symmetrize_on = std::stoi(value);
     }
     std::cout << std::endl;
     file.close();

@@ -163,7 +163,7 @@ std::vector<double> get_weights(std::vector<int> &msa_seqs, int nseq, double del
 }
 
 void fill_freq(std::vector<int> &msa_seqs, std::vector<double> &weights,
-		arma::mat &msa_freq, arma::cube &msa_corr,int nseq){
+		arma::mat &msa_freq, arma::cube &msa_corr,int nseq, bool symon){
 
   //double Meff = std::accumulate(weights.begin(), weights.end(), 0);
   std::cout << nseq << std::endl;
@@ -187,9 +187,11 @@ void fill_freq(std::vector<int> &msa_seqs, std::vector<double> &weights,
         int ind1 = msa_seqs[m*N+i];
         int ind2 = msa_seqs[m*N+j];
         msa_corr(ind1,ind2,index) += weights[m];
-        if(ind1!=ind2){
-          msa_corr(ind2,ind1,index) += 0.5*weights[m];
-          msa_corr(ind1,ind2,index) -= 0.5*weights[m];
+        if(symon){
+          if(ind1!=ind2){
+            msa_corr(ind2,ind1,index) += 0.5*weights[m];
+            msa_corr(ind1,ind2,index) -= 0.5*weights[m];
+          }
         }
       }
     } 
@@ -240,12 +242,14 @@ void fill_ene_weighted_freq(std::vector<int> &msa_seqs, std::vector<double> &wei
         corr1(ind1,ind2,index) += weights[m]*q1[m];
         corr2(ind1,ind2,index) += weights[m]*q2[m];
 
+/*
         if(ind1!=ind2){
 	  corr1(ind2,ind1,index) += 0.5*weights[m]*q1[m];
 	  corr2(ind2,ind1,index) += 0.5*weights[m]*q2[m];
 	  corr1(ind1,ind2,index) -= 0.5*weights[m]*q1[m];
 	  corr2(ind1,ind2,index) -= 0.5*weights[m]*q2[m];
         }
+*/
       }
     } 
   }

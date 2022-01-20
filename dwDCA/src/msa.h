@@ -31,7 +31,7 @@ std::vector<double> get_weights(std::vector<int> &msa_seqs, int nseq, double del
  * @param nseq, Number of sequences in MSA.
  * @param delta, Reweighting threshold. */
 void fill_freq(std::vector<int> &msa_seqs, std::vector<double> &weights,
-		arma::mat &msa_freq, arma::cube &msa_corr, int nseq);
+		arma::mat &msa_freq, arma::cube &msa_corr, int nseq, bool symon);
 
 void fill_ene_weighted_freq(std::vector<int> &msa_seqs, std::vector<double> &weights,
 		arma::mat &freq1, arma::mat &freq2, arma::cube &corr1, arma::cube &corr2, model &mymodel, int nseq);

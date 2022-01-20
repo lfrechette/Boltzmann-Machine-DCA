@@ -12,7 +12,7 @@ model::model(){
   lambda = 0.01;
 }
 
-model::model(int N1, int q1, int nwell1, double lam, double Tm, std::string mc_init1){
+model::model(int N1, int q1, int nwell1, double lam, bool symon, double Tm, std::string mc_init1){
   N = N1;
   q = q1;
   nwell = nwell1;
@@ -36,6 +36,7 @@ model::model(int N1, int q1, int nwell1, double lam, double Tm, std::string mc_i
   mom1_err=0;
   mom2_err=0;
   mc_init = mc_init1;
+  symmetrize_on=symon;
 }
 
 model::~model(){
@@ -51,9 +52,8 @@ double model::get_energy(std::vector<int> &seq){
   for(int i=0; i<(N-1); i++){
     for(int j=(i+1); j<N; j++){
       int index = (N-1)*i-i*(i+1)/2+j-1;
-      //do we need to symmetrize?
-      //energy -= J1(seq[i], seq[j], index);
-      energy -= (J1(seq[i], seq[j], index) + J1(seq[j], seq[i], index))/2; //symmetrize the couplings for computing energy
+      if(symmetrize_on) energy -= (J1(seq[i], seq[j], index) + J1(seq[j], seq[i], index))/2; 
+      else energy -= J1(seq[i], seq[j], index);
     }
   }
 
@@ -67,8 +67,8 @@ double model::get_energy(std::vector<int> &seq){
     for(int i=0; i<(N-1); i++){
       for(int j=(i+1); j<N; j++){
         int index = (N-1)*i-i*(i+1)/2+j-1;
-        //e2 -= J2(seq[i], seq[j], index);
-        e2 -= (J2(seq[i], seq[j], index) + J2(seq[j], seq[i], index))/2;
+        if(symmetrize_on) e2 -= (J2(seq[i], seq[j], index) + J2(seq[j], seq[i], index))/2;
+        else e2 -= J2(seq[i], seq[j], index);
       }
     } 
     energy += exp(-e2/Tmix);
@@ -94,8 +94,14 @@ double model::get_energy_single(std::vector<int> &seq, int well){
   for(int i=0; i<(N-1); i++){
     for(int j=(i+1); j<N; j++){
       int index = (N-1)*i-i*(i+1)/2+j-1;
-      if(well==1) energy -= (J1(seq[i], seq[j], index) + J1(seq[j], seq[i], index))/2;
-      else if(well==2) energy -= (J2(seq[i], seq[j], index) + J2(seq[j], seq[i], index))/2;
+      if(well==1){
+        if(symmetrize_on) energy -= (J1(seq[i], seq[j], index) + J1(seq[j], seq[i], index))/2;
+        else energy -= J1(seq[i], seq[j], index);
+      }
+      else if(well==2){
+        if(symmetrize_on) energy -= (J2(seq[i], seq[j], index) + J2(seq[j], seq[i], index))/2;
+        else energy -= J2(seq[i], seq[j], index); 
+      } 
       else{
         std::cout << "index: " << well << std::endl;
         printf("Not a valid well index. Exiting\n");
@@ -130,16 +136,62 @@ double model::get_Z(){
   return Z;
 }
 
+//Note: unlike single-well case, this transformation
+//does not leave the double-well distribution invariant!
 void model::convert_to_zero_sum(){
   
   for(int i=0; i<N; i++){
     double sum=0;
     for(int a=0; a<q; a++) sum += h1(i,a);
     for(int a=0; a<q; a++) h1(i,a) -= sum/q;
+    for(int a=0; a<q; a++){
+      for(int q1=0; q1<q; q1++){
+        for(int j=0; j<N; j++){
+          if(j!=i){
+            if(j>i){
+              int index = (N-1)*i-i*(i+1)/2+j-1;
+              h1(i,a) += J1(a,q1,index)/q;
+              for(int q2=0; q2<q; q2++){
+                h1(i,a) -= J1(q1,q2,index)/(q*q);
+              }
+            }
+            else{
+              int index = (N-1)*j-j*(j+1)/2+i-1;
+              h1(i,a) += J1(q1,a,index)/q;
+              for(int q2=0; q2<q; q2++){
+                h1(i,a) -= J1(q1,q2,index)/(q*q);
+              }
+            }
+          }
+        }
+      }
+    }
     if(nwell==2){
       sum=0;
       for(int a=0; a<q; a++) sum += h2(i,a);
       for(int a=0; a<q; a++) h2(i,a) -= sum/q;
+      for(int a=0; a<q; a++){
+        for(int q1=0; q1<q; q1++){
+          for(int j=0; j<N; j++){
+            if(j!=i){
+              if(j>i){
+                int index = (N-1)*i-i*(i+1)/2+j-1;
+                h2(i,a) += J2(a,q1,index)/q;
+                for(int q2=0; q2<q; q2++){
+                  h2(i,a) -= J2(q1,q2,index)/(q*q);
+                }
+              }
+              else{
+                int index = (N-1)*j-j*(j+1)/2+i-1;
+                h2(i,a) += J2(q1,a,index)/q;
+                for(int q2=0; q2<q; q2++){
+                  h2(i,a) -= J2(q1,q2,index)/(q*q);
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
   for(int i=0; i<N-1; i++){

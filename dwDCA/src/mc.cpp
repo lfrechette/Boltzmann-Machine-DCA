@@ -21,7 +21,7 @@
 #include "io.h"
 #include "rand.h"
 
-int nequil=1000;
+int nequil=10000;
 std::string ga_str = "MEAVDANSLAQAKEAAIKELKQYGIGDYYIKLINNAKTVEGVESLKNEILKALPTE";
 std::string gb_str = "MTYKLILNGKTLKGETTTEAVDAATAEKVFKQYANDNGVDGEWTYDDATKTFTVTE";
 
@@ -118,11 +118,13 @@ void run_mc_traj(model &model, int n){
           int index = (model.N-1)*i-i*(i+1)/2+j-1;
           model.mom2(seq[i],seq[j],index)++;
           mom2_temp[block_cnt](seq[i],seq[j],index)++;
-          if(seq[i]!=seq[j]){
-            model.mom2(seq[j],seq[i],index) += 0.5;//symmetrize
-            mom2_temp[block_cnt](seq[j],seq[i],index) += 0.5;
-            model.mom2(seq[i],seq[j],index) -= 0.5;
-            mom2_temp[block_cnt](seq[i],seq[j],index) -= 0.5;
+          if(model.symmetrize_on){
+            if(seq[i]!=seq[j]){
+              model.mom2(seq[j],seq[i],index) += 0.5;
+              mom2_temp[block_cnt](seq[j],seq[i],index) += 0.5;
+              model.mom2(seq[i],seq[j],index) -= 0.5;
+              mom2_temp[block_cnt](seq[i],seq[j],index) -= 0.5;
+            }
           }
         }
       }

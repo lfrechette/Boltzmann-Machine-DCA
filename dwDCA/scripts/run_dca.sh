@@ -1,3 +1,3 @@
 #!/bin/bash
 
-bin/run_dca_v2 $1
+bin/run_dca $1
