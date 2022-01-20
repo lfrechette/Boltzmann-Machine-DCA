@@ -40,6 +40,8 @@ class model {
      * @param seq, Protein sequence. */
     double get_energy(std::vector<int> &seq);
 
+    double get_delta_energy(std::vector<int> &seq, int m, int r);
+
     double get_energy_single(std::vector<int> &seq, int well);
 
     /** Get the energy of a selected site within a sequence.

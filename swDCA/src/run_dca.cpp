@@ -9,6 +9,7 @@
 #include "model.h"
 #include "msa.h"
 #include "run_dca.h"
+#include "omp.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,9 +36,11 @@ std::string output_dir;
 std::string folder_name;
 
 gsl_rng *rg;
+gsl_rng **rg_replica;
 
 int max_iter;
 int mc_steps;
+int nrep;
 double eps0_h;
 double eps0_J;
 double eps_inc;
@@ -52,6 +55,7 @@ double cutoff_freq;
 bool adaptive_stepsize_on;
 bool adaptive_sampling_on;
 bool symmetrize_on; 
+bool verbose;
 double delta=0.2; //reweighting threshold
 long unsigned int myseed;
 
@@ -113,11 +117,6 @@ int main(int argc, char *argv[]){
   msa_freq.save(scratch_dir + "stat_align_1p.txt", arma::arma_ascii);
   msa_corr.save(scratch_dir + "stat_align_2p.txt", arma::arma_ascii);
 
-  std::cout << "msa frequencies:" << std::endl;
-  std::cout << msa_freq << std::endl;
-  std::cout << "msa correlations" << std::endl;
-  std::cout << msa_corr << std::endl;
-
   //Initialize parameters
   if(input_name=="none") init_default(model, msa_freq);
   else read_params(model,input_name); 
@@ -144,7 +143,7 @@ int main(int argc, char *argv[]){
   }
 
   //Run DCA
-  fit(model,msa_freq,msa_corr);
+  fit(model,msa_freq,msa_corr,nrep);
 
   if(model.N==2){
     std::cout << "h:" << std::endl;
@@ -156,8 +155,8 @@ int main(int argc, char *argv[]){
   //Ensure parameters are in zero-sum gauge
   model.convert_to_zero_sum();
 
-  std::cout << "After zero-sum conversion:" << std::endl;
   if(model.N==2){
+    std::cout << "After zero-sum conversion:" << std::endl;
     std::cout << "h:" << std::endl;
     std::cout << model.h << std::endl;
     std::cout << "J:" << std::endl;
@@ -183,7 +182,7 @@ void init_default(model &mymodel, arma::mat &msa_freq){
   }
 }
 
-void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr){
+void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
 
   bool converged = false;
   int niter=0;
@@ -217,7 +216,9 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr){
   while(!converged){
 
     std::cout << std::endl << "iteration " << niter << std::endl;
-    run_mc_traj(mymodel,mc_steps);
+
+    run_mc_traj(mymodel,mc_steps,nr);
+
     avg_energies[niter] = mymodel.avg_ene;
     std::cout << "Avg. energy: " << avg_energies[niter] << std::endl;
     print_seqs(mymodel, scratch_dir + "seqs_" + std::to_string(niter) + ".txt");
@@ -243,6 +244,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr){
       std::cout << "model 2p freq:" << std::endl;
       std::cout << mymodel.mom2 << std::endl;
     }
+
     if(adaptive_sampling_on){
       if(diff1<mymodel.mom1_err && diff2<mymodel.mom2_err){
         std::cout << "Std. errors: " << mymodel.mom1_err << " " << mymodel.mom2_err << std::endl;
@@ -259,10 +261,12 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr){
     }
 */
     //Dump current statistics and parameters to file
-    mymodel.mom1.save(scratch_dir + "stat_MC_1p_" + std::to_string(niter) + ".txt", arma::arma_ascii);
-    mymodel.mom2.save(scratch_dir + "stat_MC_2p_" + std::to_string(niter) + ".txt",arma::arma_ascii);
-    mymodel.h.save(scratch_dir + "h_" + std::to_string(niter) + ".txt", arma::arma_ascii);
-    mymodel.J.save(scratch_dir + "J_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+    if (verbose) {
+	    mymodel.mom1.save(scratch_dir + "stat_MC_1p_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+	    mymodel.mom2.save(scratch_dir + "stat_MC_2p_" + std::to_string(niter) + ".txt",arma::arma_ascii);
+	    mymodel.h.save(scratch_dir + "h_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+	    mymodel.J.save(scratch_dir + "J_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+    }
     
     /*** Compute derivatives ***/
     dh = (msa_freq-mymodel.mom1 - 2*mymodel.lambda*mymodel.h);
@@ -276,8 +280,11 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr){
     mymodel.J += change_J;
 
    //Dump derivatives to file
-    dh.save(scratch_dir + "dh_" + std::to_string(niter) + ".txt", arma::arma_ascii);
-    dJ.save(scratch_dir + "dJ_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+    if (verbose) {
+	    dh.save(scratch_dir + "dh_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+	    dJ.save(scratch_dir + "dJ_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+    }
+
 
     //Update learning rates **MAKE THIS INTO A SEPARATE FUNCTION**
     if(adaptive_stepsize_on){
@@ -329,6 +336,10 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr){
 
 void read_inputs(std::string name){
 
+  // default values...
+  nrep = 1;
+  verbose = 0;
+
   //Adapted from https://stackoverflow.com/questions/7868936/read-file-line-by-line-using-ifstream-in-c
   std::ifstream file(name);
   if(file.is_open()){
@@ -363,6 +374,8 @@ void read_inputs(std::string name){
       if(key.compare("delta")==0) delta = std::stof(value);
       if(key.compare("mc_init")==0) mc_init = value;
       if(key.compare("symmetrize_on")==0) symmetrize_on = std::stoi(value);
+      if(key.compare("nrep")==0) nrep = std::stoi(value);
+      if(key.compare("verbose")==0) verbose=std::stoi(value);
     }
     std::cout << std::endl;
     file.close();
