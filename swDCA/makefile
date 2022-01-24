@@ -13,12 +13,15 @@ ARMA_DIR := /home/frechettelb/local/armadillo-10.2.2
 EXECUTABLE := run_swdca
 SOURCES := $(wildcard $(SRC_DIR)/*.cpp)
 HEADERS := $(wildcard $(SRC_DIR)/*.h)
-CXX := g++ #g++-9
+
+# CXX := g++ #g++-9
+CXX := g++-9
 
 SHELL = /bin/sh
 
 # Flags to pass to the compiler; per the reccomendations of the GNU Scientific Library
-CXXFLAGS:= -std=c++17 -Wextra -pedantic -Wall -W -Wmissing-declarations -Wuninitialized -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -fshort-enums -fno-common -m64 -fopenmp -I$(ARMA_DIR)/include #-I$(HOME)/include
+# CXXFLAGS:= -std=c++17 -Wextra -pedantic -Wall -W -Wmissing-declarations -Wuninitialized -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -fshort-enums -fno-common -m64 -fopenmp -I$(ARMA_DIR)/include #-I$(HOME)/include
+CXXFLAGS:= -std=c++17 -Wextra -pedantic -Wall -W -Wmissing-declarations -Wuninitialized -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -fshort-enums -fno-common -m64 -fopenmp -I$(HOME)/include #-I$(ARMA_DIR)/include
 
 # Compiler flags controling optimization levels. Use -O3 for full optimization,
 # but make sure your results are consistent
@@ -27,7 +30,8 @@ PROFILE=-pg
 OPTFLAGS:=$(PROFILE) -O2
 
 # Flags to pass to the linker; -lm links in the standard c math library
-LDFLAGS:= -fopenmp -lm -lgsl -lgslcblas -llapack -lblas -larmadillo $(PROFILE) -L$(ARMA_DIR) #-L$(HOME)/lib
+# LDFLAGS:= -fopenmp -lm -lgsl -lgslcblas -llapack -lblas -larmadillo $(PROFILE) -L$(ARMA_DIR) #-L$(HOME)/lib
+LDFLAGS:= -fopenmp -lm -lgsl -lgslcblas -llapack -lblas -larmadillo $(PROFILE) -L$(HOME)/lib #-L$(ARMA_DIR)
 
 # Variable to compose names of object files from the names of sources
 OBJECTS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SOURCES))

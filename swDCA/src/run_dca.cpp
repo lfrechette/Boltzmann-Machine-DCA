@@ -268,6 +268,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
 	    mymodel.J.save(scratch_dir + "J_" + std::to_string(niter) + ".txt", arma::arma_ascii);
     }
     
+
     /*** Compute derivatives ***/
     dh = (msa_freq-mymodel.mom1 - 2*mymodel.lambda*mymodel.h);
     dJ = (msa_corr-mymodel.mom2 - 2*mymodel.lambda*mymodel.J);
@@ -278,6 +279,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
     //Update parameters
     mymodel.h += change_h;
     mymodel.J += change_J;
+
 
    //Dump derivatives to file
     if (verbose) {
@@ -298,6 +300,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
           if(alpha_h(i,a)<eps_min_h) alpha_h(i,a)=eps_min_h;
         }
       }
+
       for(int i=0; i<mymodel.N-1; i++){
         for(int j=i+1; j<mymodel.N; j++){ 
           int index = (mymodel.N-1)*i-i*(i+1)/2+j-1;
@@ -315,6 +318,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
       }
     }
 
+
     //Update previous step gradient
     dh_prev = dh;
     dJ_prev = dJ;
@@ -326,6 +330,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
       std::cout << "Max of |dh|, |dJ|: " << max1 << " " << max2 << std::endl;
       converged=true;
     }
+
   }
 
   //Dump energies to file

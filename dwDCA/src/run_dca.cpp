@@ -35,9 +35,11 @@ std::string output_dir;
 std::string folder_name;
 
 gsl_rng *rg;
+gsl_rng **rg_replica;
 
 int max_iter;
 int mc_steps;
+int nrep; 
 double eps0_h;
 double eps0_J;
 double eps_inc;
@@ -52,6 +54,7 @@ double cutoff_freq;
 bool adaptive_stepsize_on;
 bool symmetrize_on;
 bool cd_on;
+bool verbose;
 int nwell;
 double Tmix=1.0;
 double delta=0.2; //reweighting threshold
@@ -98,7 +101,9 @@ int main(int argc, char *argv[]){
 
   //Define data output directory
   output_dir = "data/";
-  scratch_dir = "/data/frechettelb/protein_evolution/dwDCA/data/";
+
+  //scratch_dir = "/data/frechettelb/protein_evolution/dwDCA/data/";
+  scratch_dir = "data/";
 
   output_dir += folder_name + "/";
   scratch_dir += folder_name + "/";
@@ -164,7 +169,7 @@ int main(int argc, char *argv[]){
   //model.convert_to_zero_sum();
 
   //Run DCA
-  fit(model,msa_freq,msa_corr,msa_seqs,weights);
+  fit(model,msa_freq,msa_corr,msa_seqs,weights,nrep);
 
   if(model.N==2){
     std::cout << "h1:" << std::endl;
@@ -183,7 +188,7 @@ int main(int argc, char *argv[]){
   return 1;
 }
 
-void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<int> msa_seqs, std::vector<double> weights){
+void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<int> msa_seqs, std::vector<double> weights, int nr){
 
   bool converged = false;
   int niter=0;
@@ -231,7 +236,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
   while(!converged){
 
     std::cout << std::endl << "iteration " << niter << std::endl;
-    run_mc_traj(mymodel,mc_steps);
+    run_mc_traj(mymodel,mc_steps,nr);
     avg_energies[niter] = mymodel.avg_ene;
     std::cout << "Avg. energy: " << avg_energies[niter] << std::endl;
     print_seqs(mymodel, scratch_dir + "seqs_" + std::to_string(niter) + ".txt");
@@ -278,6 +283,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
       std::cout << "Cross-entropy: " << entropy[niter] << std::endl;
     }
 */
+    if (verbose) {
     //Dump current statistics and parameters to file
     mymodel.mom1.save(scratch_dir + "stat_MC_1p_" + std::to_string(niter) + ".txt", arma::arma_ascii);
     mymodel.mom2.save(scratch_dir + "stat_MC_2p_" + std::to_string(niter) + ".txt",arma::arma_ascii);
@@ -286,6 +292,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
     if(mymodel.nwell==2){
       mymodel.h2.save(scratch_dir + "h2_" + std::to_string(niter) + ".txt", arma::arma_ascii);
       mymodel.J2.save(scratch_dir + "J2_" + std::to_string(niter) + ".txt",arma::arma_ascii);
+    }
     }
     
     /*** Compute derivatives ***/
@@ -341,6 +348,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
       mymodel.J2 += change_J2;
     }
 
+    if (verbose) {
    //Dump derivatives to file
     dh1.save(scratch_dir + "dh1_" + std::to_string(niter) + ".txt", arma::arma_ascii);
     dJ1.save(scratch_dir + "dJ1_" + std::to_string(niter) + ".txt", arma::arma_ascii);
@@ -348,6 +356,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
     if(mymodel.nwell==2){
       dh2.save(scratch_dir + "dh2_" + std::to_string(niter) + ".txt", arma::arma_ascii);
       dJ2.save(scratch_dir + "dJ2_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+    }
     }
 
     //Update learning rates
@@ -431,6 +440,8 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
 
 void read_inputs(std::string name){
 
+  nrep=1;
+  verbose=false;
   //Adapted from https://stackoverflow.com/questions/7868936/read-file-line-by-line-using-ifstream-in-c
   std::ifstream file(name);
   if(file.is_open()){
@@ -468,6 +479,8 @@ void read_inputs(std::string name){
       if(key.compare("mc_init")==0) mc_init = value;
       if(key.compare("param_init")==0) param_init = value;
       if(key.compare("symmetrize_on")==0) symmetrize_on = std::stoi(value);
+      if(key.compare("nrep")==0) nrep = std::stoi(value);
+      if(key.compare("verbose")==0) verbose = std::stoi(value);
     }
     std::cout << std::endl;
     file.close();
