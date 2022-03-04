@@ -84,12 +84,13 @@ void run_mc_traj(model &model, int n, int nr){
     }
 
     //Equilibrate
-    if(model.mc_init=="random"){
+    if(model.mc_init!="gagb"){
     for(int t=0;  t<nequil; t++){
       //std::cout << "Equilibrating...Pass " << t << ", energy=" << model.get_energy(seq) << std::endl;
       do_sweep(model, seq, 1.0, rg);
     }
     }
+    //for (int j=0; j<seq.size(); j++) std::cout << seq[j];
 
     //Production
     int dump_cnt=0;
@@ -124,6 +125,8 @@ void run_mc_traj(model &model, int n, int nr){
     gsl_rng *my_rng = rg_replica[ID];  
     double my_T = Tsamples[T2rep[ID]];
     std::vector<int> my_seq = seq;
+    //for (int j=0; j<my_seq.size(); j++) std::cout << my_seq[j];
+
     //model local_model(Model.N,Model.q,Model.lambda,Model.symmetrize_on,Model.mc_init);
     if (ID==T0_ID) {
 	    true_nr = omp_get_num_threads();
@@ -137,24 +140,29 @@ void run_mc_traj(model &model, int n, int nr){
 
     for(int t=0; t<n/nseed; t++){
       //std::cout << "Pass number " << t << std::endl;
+      //What is this doing?
+      /*
       if(t==n/nseed/2 && model.mc_init=="gagb"){
         for(int i=0; i<model.N; i++) my_seq[i] = gb[i];
       }
+      */
+
+
+      do_sweep(model, my_seq, my_T, my_rng);
+
+      Energies[ID] = model.get_energy(my_seq); 
 
       if (ID==T0_ID) {
 	      if(t%dump_freq==0){
 		      std::stringstream seqstr;
-		      for(int j=0; j<seq.size(); j++){
-			      seqstr << number_to_letter(seq[j],model.q);
+		      for(int j=0; j<my_seq.size(); j++){
+			      seqstr << number_to_letter(my_seq[j],model.q);
 		      }
 		      model.seqs[dump_cnt] = seqstr.str();
 		      dump_cnt++;
 	      }
       }
 
-      do_sweep(model, my_seq, my_T, my_rng);
-
-      Energies[ID] = model.get_energy(my_seq); 
 
 #pragma omp barrier // need all energies before proceeding!
 
@@ -209,10 +217,11 @@ void run_mc_traj(model &model, int n, int nr){
       if(model.nwell==2){
         double E1 = model.get_energy_single(seq, 1);
         double E2 = model.get_energy_single(seq, 2);
-        double exp1 = exp(-E1/model.Tmix);
-        double exp2 = exp(-E2/model.Tmix);
-        double q1 = exp1/(exp1+exp2);
-        double q2 = exp2/(exp1+exp2);
+        //double exp1 = exp(-E1/model.Tmix);
+        //double exp2 = exp(-E2/model.Tmix);
+        double exp21 = exp(-(E2-E1)/model.Tmix);
+        double q1 = 1.0/(1.0+exp21); //exp1/(exp1+exp2);
+        double q2 = 1.0/(1.0+1.0/exp21); //exp2/(exp1+exp2);
         for(int i=0; i<model.N; i++){
           model.mom1_ene1(i,seq[i]) += q1;
           model.mom1_ene2(i,seq[i]) += q2;

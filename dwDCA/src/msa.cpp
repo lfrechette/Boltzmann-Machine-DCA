@@ -205,7 +205,9 @@ void fill_freq(std::vector<int> &msa_seqs, std::vector<double> &weights,
 void fill_ene_weighted_freq(std::vector<int> &msa_seqs, std::vector<double> &weights,
 		arma::mat &freq1, arma::mat &freq2, arma::cube &corr1, arma::cube &corr2, model &mymodel, int nseq){
 
-  double Meff = std::accumulate(weights.begin(), weights.end(), 0);
+  double Meff=0;
+  for(int i=0; i<nseq; i++) Meff+=weights[i];
+
   int N = mymodel.N;
   double Tmix = mymodel.Tmix;
   
@@ -224,8 +226,9 @@ void fill_ene_weighted_freq(std::vector<int> &msa_seqs, std::vector<double> &wei
     double E2 = mymodel.get_energy_single(seq_curr, 2);
     double exp1 = exp(-E1/Tmix);
     double exp2 = exp(-E2/Tmix);
-    q1[m] = exp1/(exp1+exp2);
-    q2[m] = exp2/(exp1+exp2);
+    //double exp21 = exp(-(E2-E1)/Tmix);
+    q1[m] = exp1/(exp1+exp2); //1.0/(1.0+exp21);
+    q2[m] = exp2/(exp1+exp2); //1.0/(1.0+1.0/exp21); 
   } 
 
   //Compute frequencies
