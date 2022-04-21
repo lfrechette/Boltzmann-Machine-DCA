@@ -72,10 +72,67 @@ double model::get_energy(std::vector<int> &seq){
       }
     } 
     energy += exp(-e2/Tmix);
-    energy = -Tmix*log(energy/2);
+    energy = -Tmix*log(energy);
   }
 
   return energy;
+}
+
+double model::get_delta_energy_single(std::vector<int> &seq, int well, int m, int r){
+
+  double dE = 0;
+
+  if(well==1) {
+	  dE -= h1(m,r) - h1(m,seq[m]);
+	  for(int i=0; i<m; i++){
+		  int index = (N-1)*i-i*(i+1)/2+m-1;
+          if(symmetrize_on) {
+		    dE -= (J1(seq[i], r, index) + J1(r, seq[i], index))/2;
+		    dE += (J1(seq[i], seq[m], index) + J1(seq[m], seq[i], index))/2;
+          } else {
+              dE -= J1(seq[i], r, index);
+              dE += J1(seq[i], seq[m], index);
+          }
+	  } 
+	  for(int j=(m+1); j<N; j++){
+		  int index = (N-1)*m-m*(m+1)/2+j-1;
+          if(symmetrize_on) {
+		    dE -= (J1(r, seq[j], index) + J1(seq[j], r, index))/2;
+		    dE += (J1(seq[m], seq[j], index) + J1(seq[j], seq[m], index))/2;
+          } else {
+              dE -= J1(r, seq[j], index);
+              dE += J1(seq[m], seq[j], index);
+          }
+	  }
+  } else if(well==2) {
+	  dE -= h2(m,r) - h2(m,seq[m]);
+	  for(int i=0; i<m; i++){
+		  int index = (N-1)*i-i*(i+1)/2+m-1;
+          if(symmetrize_on) {
+		    dE -= (J2(seq[i], r, index) + J2(r, seq[i], index))/2;
+		    dE += (J2(seq[i], seq[m], index) + J2(seq[m], seq[i], index))/2;
+          } else {
+              dE -= J2(seq[i], r, index);
+              dE += J2(seq[i], seq[m], index);
+          }
+	  }
+	  for(int j=(m+1); j<N; j++){
+		  int index = (N-1)*m-m*(m+1)/2+j-1;
+          if(symmetrize_on) {
+		    dE -= (J2(r, seq[j], index) + J2(seq[j], r, index))/2;
+            dE += (J2(seq[m], seq[j], index) + J2(seq[j], seq[m], index))/2;
+          } else {
+              dE -= J2(r, seq[j], index);
+              dE += J2(seq[m], seq[j], index);
+          }
+	  }
+  } else {
+	  std::cout << "index: " << well << std::endl;
+	  printf("Not a valid well index. Exiting\n");
+	  exit(-1);
+  }
+
+  return dE;
 }
 
 double model::get_energy_single(std::vector<int> &seq, int well){
