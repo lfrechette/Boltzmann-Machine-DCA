@@ -17,4 +17,6 @@ void print_params(model &mymodel, std::string out_name);
 
 void print_seqs(model &mymodel, std::string out_name);
 
+arma::mat get_norm(model &mymodel);
+
 #endif

@@ -57,6 +57,7 @@ bool adaptive_sampling_on;
 bool symmetrize_on; 
 bool verbose;
 double delta=0.2; //reweighting threshold
+std::string reg_type="L2";
 long unsigned int myseed;
 
 /*** Main ***/
@@ -103,6 +104,9 @@ int main(int argc, char *argv[]){
   if(adaptive_sampling_on) folder_name += "_as";
   if(adaptive_stepsize_on) folder_name += "_al";
   if(gamma_mom>0.0) folder_name += "_gamma=" + std::to_string(gamma_mom);
+  if(reg_type!="L2") folder_name += "_reg_type=" + reg_type;
+  if(nrep!=1) folder_name += "_nrep=" + std::to_string(nrep);
+  if(cutoff_freq!=0.05) folder_name += "_cutoff_freq=" + std::to_string(cutoff_freq);
 
   output_dir += folder_name + "/";
   scratch_dir += folder_name + "/";
@@ -133,7 +137,7 @@ int main(int argc, char *argv[]){
   msa_corr(1,0,0)=0.059601;
   msa_corr(1,1,0)=0.440399;
 */
-  model.convert_to_zero_sum();
+  //model.convert_to_zero_sum();
 
   if(model.N==2){
     std::cout << "h:" << std::endl;
@@ -153,7 +157,7 @@ int main(int argc, char *argv[]){
   }
 
   //Ensure parameters are in zero-sum gauge
-  model.convert_to_zero_sum();
+  //model.convert_to_zero_sum();
 
   if(model.N==2){
     std::cout << "After zero-sum conversion:" << std::endl;
@@ -223,11 +227,62 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
     std::cout << "Avg. energy: " << avg_energies[niter] << std::endl;
     print_seqs(mymodel, scratch_dir + "seqs_" + std::to_string(niter) + ".txt");
 
+    /*** Compute derivatives ***/
+    dh = msa_freq-mymodel.mom1;
+    dJ = msa_corr-mymodel.mom2;
+
+    if(reg_type=="L2"){
+      dh -= 2*mymodel.lambda*mymodel.h;
+      dJ -= 2*mymodel.lambda*mymodel.J;
+    }
+    else if(reg_type=="L1"){
+      dh -= mymodel.lambda*sign(mymodel.h);
+      dJ -= mymodel.lambda*sign(mymodel.J);
+    }
+    else if(reg_type=="LH"){
+      arma::mat M = get_norm(mymodel);
+      arma::cube dmat(mymodel.q, mymodel.q, mymodel.N*(mymodel.N-1)/2,arma::fill::zeros);
+      arma::mat term1(mymodel.N,mymodel.N,arma::fill::zeros);
+      arma::vec p(mymodel.N,arma::fill::zeros);
+      for(int i=0; i<mymodel.N; i++){
+        for(int j=0; j<mymodel.N; j++){
+          p(i) += M(i,j);
+        }
+      }
+      std::cout << "psum: " << arma::accu(p) << std::endl;
+      for(int i=0; i<mymodel.N; i++){
+        for(int j=0; j<mymodel.N; j++){
+          term1(i,j) = p(i)*p(j)/(arma::accu(p)+1e-10); //prevent div by zero
+        }
+      }
+      for(int i=0; i<mymodel.N-1; i++){
+        for(int j=i+1; j<mymodel.N; j++){
+          int index = (mymodel.N-1)*i-i*(i+1)/2+j-1;
+          for(int a=0; a<mymodel.q; a++){
+            for(int b=0; b<mymodel.q; b++){
+              dmat(a,b,index) = term1(i,j)*mymodel.J(a,b,index)/(M(i,j)+1e-10); //prevent div by zero
+            }
+          }
+        }
+      }
+      dJ -= 2*mymodel.lambda*dmat;
+      //INSERT CODE HERE
+    }
+
+    change_h = gamma_mom*change_h + alpha_h%dh;
+    change_J = gamma_mom*change_J + alpha_J%dJ;
+
+    //Dump derivatives to file
+    if (verbose) {
+	    dh.save(scratch_dir + "dh_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+	    dJ.save(scratch_dir + "dJ_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+    }
+
     //Compute RMS difference between MSA and MC
-    double diff1 = sqrt(arma::accu(arma::square(dh_prev))/mymodel.mom1.n_elem);
-    double diff2 = sqrt(arma::accu(arma::square(dJ_prev))/mymodel.mom2.n_elem);
-    double max1 = arma::abs(dh_prev).max();
-    double max2 = arma::abs(dJ_prev).max();
+    double diff1 = sqrt(arma::accu(arma::square(dh))/mymodel.mom1.n_elem);
+    double diff2 = sqrt(arma::accu(arma::square(dJ))/mymodel.mom2.n_elem);
+    double max1 = arma::abs(dh).max();
+    double max2 = arma::abs(dJ).max();
     std::cout << "RMS of dh, dJ: " << diff1 << " " << diff2 << std::endl;
     std::cout << "Max of dh, dJ: " << max1 << " " << max2 << std::endl;
     if(mymodel.N==2){
@@ -245,7 +300,17 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
       std::cout << mymodel.mom2 << std::endl;
     }
 
+    if(niter>max_iter || (max1<cutoff_freq && max2<cutoff_freq)){
+      std::cout << "Converged!" << std::endl;
+      std::cout << "RMS of dh, dJ: " << diff1 << " " << diff2 << std::endl;
+      std::cout << "Max of |dh|, |dJ|: " << max1 << " " << max2 << std::endl;
+      converged=true;
+    }
+
     if(adaptive_sampling_on){
+      //Increase amount of sampling if derivatives are within
+      //standard error of MC sampling.
+      //(Could also do this based on max error.)
       if(diff1<mymodel.mom1_err && diff2<mymodel.mom2_err){
         std::cout << "Std. errors: " << mymodel.mom1_err << " " << mymodel.mom2_err << std::endl;
         std::cout << "Model difference is within sampling error. Increasing sampling..." << std::endl;
@@ -253,37 +318,17 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
         std::cout << "MC steps per iteration: " << mc_steps << std::endl;
       }
     }
-/*
-    if(mymodel.q==2){
-//      double Z = mymodel.get_Z();
-//      entropy[niter] = log(Z)-arma::accu(mymodel.mom1%mymodel.h)-arma::accu(mymodel.mom2%mymodel.J); 
-      std::cout << "Cross-entropy: " << entropy[niter] << std::endl;
-    }
-*/
     //Dump current statistics and parameters to file
     if (verbose) {
 	    mymodel.mom1.save(scratch_dir + "stat_MC_1p_" + std::to_string(niter) + ".txt", arma::arma_ascii);
 	    mymodel.mom2.save(scratch_dir + "stat_MC_2p_" + std::to_string(niter) + ".txt",arma::arma_ascii);
 	    mymodel.h.save(scratch_dir + "h_" + std::to_string(niter) + ".txt", arma::arma_ascii);
 	    mymodel.J.save(scratch_dir + "J_" + std::to_string(niter) + ".txt", arma::arma_ascii);
-    }
-    
-    /*** Compute derivatives ***/
-    dh = (msa_freq-mymodel.mom1 - 2*mymodel.lambda*mymodel.h);
-    dJ = (msa_corr-mymodel.mom2 - 2*mymodel.lambda*mymodel.J);
-
-    change_h = gamma_mom*change_h + alpha_h%dh;
-    change_J = gamma_mom*change_J + alpha_J%dJ;
+    }    
 
     //Update parameters
     mymodel.h += change_h;
     mymodel.J += change_J;
-
-   //Dump derivatives to file
-    if (verbose) {
-	    dh.save(scratch_dir + "dh_" + std::to_string(niter) + ".txt", arma::arma_ascii);
-	    dJ.save(scratch_dir + "dJ_" + std::to_string(niter) + ".txt", arma::arma_ascii);
-    }
 
 
     //Update learning rates **MAKE THIS INTO A SEPARATE FUNCTION**
@@ -318,19 +363,23 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
     //Update previous step gradient
     dh_prev = dh;
     dJ_prev = dJ;
+
+    /*
+    if(mymodel.q==2){
+      double Z = mymodel.get_Z();
+      entropy[niter] = log(Z)-arma::accu(mymodel.mom1%mymodel.h)-arma::accu(mymodel.mom2%mymodel.J); 
+      std::cout << "Cross-entropy: " << entropy[niter] << std::endl;
+    }
+    */
     
     niter++;
-    if(niter>max_iter || (max1<cutoff_freq && max2<cutoff_freq)){
-      std::cout << "Converged!" << std::endl;
-      std::cout << "RMS of dh, dJ: " << diff1 << " " << diff2 << std::endl;
-      std::cout << "Max of |dh|, |dJ|: " << max1 << " " << max2 << std::endl;
-      converged=true;
-    }
   }
 
   //Dump energies to file
   avg_energies.save(output_dir + "avg_ene.txt", arma::arma_ascii);
   //entropy.save(output_dir + "entropy.txt", arma::arma_ascii);
+  //
+
 
 }
 
@@ -376,6 +425,7 @@ void read_inputs(std::string name){
       if(key.compare("symmetrize_on")==0) symmetrize_on = std::stoi(value);
       if(key.compare("nrep")==0) nrep = std::stoi(value);
       if(key.compare("verbose")==0) verbose=std::stoi(value);
+      if(key.compare("reg_type")==0) reg_type = value;
     }
     std::cout << std::endl;
     file.close();
@@ -451,4 +501,24 @@ void print_seqs(model &mymodel, std::string name){
     ofile << mymodel.seqs[i] << std::endl;
   }
   ofile.close();
+}
+
+arma::mat get_norm(model &mymodel){
+ 
+  arma::mat M(mymodel.N,mymodel.N,arma::fill::zeros);
+  for(int i=0; i<mymodel.N-1; i++){
+    for(int j=i+1; j<mymodel.N; j++){
+      int index = (mymodel.N-1)*i-i*(i+1)/2+j-1;
+      double sum=0;
+      for(int a=0; a<mymodel.q; a++){
+        for(int b=0; b<mymodel.q; b++){
+          sum += mymodel.J(a,b,index)*mymodel.J(a,b,index);
+        }
+      }
+      sum = sqrt(sum);
+      M(i,j) = sum;
+      M(j,i) = M(i,j);
+    }
+  }
+  return M;
 }
