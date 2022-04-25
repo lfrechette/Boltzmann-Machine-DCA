@@ -375,6 +375,9 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
     niter++;
   }
 
+  mymodel.mom1.save(scratch_dir + "stat_MC_1p.txt", arma::arma_ascii);
+  mymodel.mom2.save(scratch_dir + "stat_MC_2p.txt",arma::arma_ascii);
+
   //Dump energies to file
   avg_energies.save(output_dir + "avg_ene.txt", arma::arma_ascii);
   //entropy.save(output_dir + "entropy.txt", arma::arma_ascii);
