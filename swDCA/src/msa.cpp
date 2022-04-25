@@ -89,6 +89,88 @@ std::string number_to_letter(int a, int q){
   return s;
 }
 
+void read_Nq(std::string msafile, int *N, int *q){
+
+  int index = msafile.find(".");
+  std::string extension = msafile.substr(index+1);
+  if(extension=="fas") *q=21;
+  else if(extension=="hp") *q=2;
+  else if(extension=="dat") *q=2; //David's contact file
+  else{
+    std::cout << "Error: file extension not recognized. Exiting." << std::endl;
+    exit(-1);
+  }
+
+  if(extension=="dat"){
+    std::ifstream stream(msafile);
+    std::string firstSeq;
+    std::getline(stream,firstSeq);
+    *N = firstSeq.length();
+    std::cout << "Sequence length: " << *N << std::endl;
+  }
+  else{
+    std::ifstream stream(msafile);
+    std::string dummyLine;
+    std::string firstSeq;
+    std::getline(stream,dummyLine);
+    std::getline(stream,firstSeq);
+    *N = firstSeq.length();
+    std::cout << "Sequence length: " << *N << std::endl;
+  }
+}
+
+std::vector<int> read_msa(std::string msafile, int N, int q){
+
+  int index = msafile.find(".");
+  std::string extension = msafile.substr(index+1);
+  int nseq = 0;
+
+  //Treat David's contact sequences as a special case
+  if(extension=="dat"){
+    std::string line;
+    std::ifstream myfile(msafile);
+    while(std::getline(myfile,line)) nseq++;
+    std::cout << "No. of sequences: " << nseq << std::endl;
+  
+    std::vector<int> msa_seqs(nseq*N);
+
+    int linecount=0;
+    std::ifstream file(msafile);
+    std::string str;
+    while(std::getline(file, str)){
+      for(int i=0; i<N; i++){
+        msa_seqs[linecount*N+i] = int(str.at(i)-'0');
+      }
+      linecount++;
+    }
+    return msa_seqs;
+  }
+  else{
+    //Count number of lines, divide by 2 to get # of seqs
+    std::string line;
+    std::ifstream myfile(msafile);
+    while(std::getline(myfile,line)) nseq++;
+    nseq = nseq/2;
+    std::cout << "No. of sequences: " << nseq << std::endl;
+
+    std::vector<int> msa_seqs(nseq*N);
+
+    int linecount=0;
+    std::ifstream file(msafile);
+    std::string str;
+    while(std::getline(file, str)){
+      if(linecount%2==1){
+        for(int i=0; i<N; i++){
+          msa_seqs[(linecount-1)/2*N+i] = letter_to_number(str.at(i),q);
+        }
+      }
+      linecount++;
+    }
+    return msa_seqs;
+  }
+}
+
+/*
 std::vector<int> read_msa(std::string msafile, int *N, int*q){
 
   int nseq = 0;
@@ -166,6 +248,7 @@ std::vector<int> read_msa(std::string msafile, int *N, int*q){
   }
 
 }
+*/
 
 std::vector<double> get_weights(std::vector<int> &msa_seqs, int nseq, double delta){
 
@@ -191,6 +274,34 @@ std::vector<double> get_weights(std::vector<int> &msa_seqs, int nseq, double del
   for(int m1=0; m1<nseq; m1++) Meff += weights[m1];
   std::cout << "Computed weights. Meff=" << Meff << std::endl;
   return weights;
+}
+
+void lowmem_fill_freq(std::string msafile, arma::mat &msa_freq, arma::cube &msa_corr, int N){
+
+  int linecount=0;
+  std::ifstream file(msafile);
+  std::string str;
+  while(std::getline(file, str)){
+    if(linecount%10000==0) std::cout << linecount << std::endl; 
+    for(int i=0; i<N; i++){
+      int q1 = int(str.at(i)-'0');
+      msa_freq(i,q1) += 1.0;
+    }
+    int l=0;
+    for(int i=0; i<N-1; i++){
+      for(int j=i+1; j<N; j++){
+        int q1 = int(str.at(i)-'0');
+        int q2 = int(str.at(j)-'0');
+        msa_corr(q1,q2,l) += 1.0;
+        l++;
+      }
+    }
+    linecount++;
+  }
+  msa_freq = msa_freq/linecount;
+  msa_corr = msa_corr/linecount;
+  std::cout << "No. seqs: " << linecount << std::endl;
+  std::cout << "Should be N: " << arma::accu(msa_freq) << std::endl;
 }
 
 void fill_freq(std::vector<int> &msa_seqs, std::vector<double> &weights,

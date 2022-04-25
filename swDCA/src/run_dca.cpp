@@ -57,6 +57,7 @@ bool adaptive_sampling_on;
 bool symmetrize_on; 
 bool verbose;
 double delta=0.2; //reweighting threshold
+int do_lowmem_fill=0;
 std::string reg_type="L2";
 long unsigned int myseed;
 
@@ -86,12 +87,9 @@ int main(int argc, char *argv[]){
   //Memory allocation
   int N;
   int q;
-  int nseq;
 
   std::cout << msa_name << std::endl;
-  std::vector<int> msa_seqs = read_msa(msa_name, &N, &q);
-  nseq = msa_seqs.size()/N;
-  std::cout << nseq << " sequences" << std::endl;
+  read_Nq(msa_name, &N, &q);
   model model(N, q, lambda, symmetrize_on, mc_init);
   std::cout << model.mc_init << std::endl;
   arma::mat msa_freq(model.N,model.q,arma::fill::ones);
@@ -115,8 +113,17 @@ int main(int argc, char *argv[]){
   fs::create_directories(scratch_dir);
 
   //Get frequencies and pair correlations from MSA
-  std::vector<double> weights = get_weights(msa_seqs, nseq, delta);
-  fill_freq(msa_seqs, weights, msa_freq, msa_corr, nseq, symmetrize_on);
+  if(do_lowmem_fill){
+   std::cout << "Doing low-memory frequency fill..." << std::endl;
+   lowmem_fill_freq(msa_name, msa_freq, msa_corr, N);
+  }
+  else{
+    std::vector<int> msa_seqs = read_msa(msa_name, N, q);
+    int nseq = msa_seqs.size()/N;
+    std::cout << nseq << " sequences" << std::endl;
+    std::vector<double> weights = get_weights(msa_seqs, nseq, delta);
+    fill_freq(msa_seqs, weights, msa_freq, msa_corr, nseq, symmetrize_on);
+  }
   std::string msa_stats_2 = scratch_dir + "/stat_align_2p.txt";
   msa_freq.save(scratch_dir + "stat_align_1p.txt", arma::arma_ascii);
   msa_corr.save(scratch_dir + "stat_align_2p.txt", arma::arma_ascii);
@@ -424,6 +431,7 @@ void read_inputs(std::string name){
       if(key.compare("gamma")==0) gamma_mom = std::stof(value);
       if(key.compare("cutoff_freq")==0) cutoff_freq = std::stof(value);
       if(key.compare("delta")==0) delta = std::stof(value);
+      if(key.compare("do_lowmem_fill")==0) do_lowmem_fill = std::stoi(value);
       if(key.compare("mc_init")==0) mc_init = value;
       if(key.compare("symmetrize_on")==0) symmetrize_on = std::stoi(value);
       if(key.compare("nrep")==0) nrep = std::stoi(value);
