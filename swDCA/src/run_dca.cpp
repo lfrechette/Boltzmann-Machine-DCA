@@ -26,6 +26,7 @@ using std::istringstream;
 //Global variables
 
 std::string msa_name;
+std::string freq_dir="none";
 std::string out_name;
 std::string input_name;
 std::string conf_name;
@@ -105,6 +106,15 @@ int main(int argc, char *argv[]){
   if(reg_type!="L2") folder_name += "_reg_type=" + reg_type;
   if(nrep!=1) folder_name += "_nrep=" + std::to_string(nrep);
   if(cutoff_freq!=0.05) folder_name += "_cutoff_freq=" + std::to_string(cutoff_freq);
+  if(input_name!="none"){
+    int index1 = input_name.find_last_of("/");
+    std::string thefile = input_name.substr(index1+1);
+    int index2 = thefile.find(".");
+    std::string thename = thefile.substr(0,index2);
+    std::cout << "check: " << thename << std::endl;
+
+    folder_name += "_input=" + thename;
+  }
 
   output_dir += folder_name + "/";
   scratch_dir += folder_name + "/";
@@ -113,20 +123,28 @@ int main(int argc, char *argv[]){
   fs::create_directories(scratch_dir);
 
   //Get frequencies and pair correlations from MSA
-  if(do_lowmem_fill){
-   std::cout << "Doing low-memory frequency fill..." << std::endl;
-   lowmem_fill_freq(msa_name, msa_freq, msa_corr, N);
+  if(freq_dir!="none"){
+    //Try reading in 1- and 2-point frequencies
+    //from specifically named files in freq_dir
+    std::cout << "Reading in MSA frequencies..." << std::endl;
+    msa_freq.load(freq_dir + "/stat_align_1p.txt", arma::arma_ascii);
+    msa_corr.load(freq_dir + "/stat_align_2p.txt", arma::arma_ascii);
   }
   else{
-    std::vector<int> msa_seqs = read_msa(msa_name, N, q);
-    int nseq = msa_seqs.size()/N;
-    std::cout << nseq << " sequences" << std::endl;
-    std::vector<double> weights = get_weights(msa_seqs, nseq, delta);
-    fill_freq(msa_seqs, weights, msa_freq, msa_corr, nseq, symmetrize_on);
+    if(do_lowmem_fill){
+      std::cout << "Doing low-memory frequency fill..." << std::endl;
+      lowmem_fill_freq(msa_name, msa_freq, msa_corr, N);
+    }
+    else{
+      std::vector<int> msa_seqs = read_msa(msa_name, N, q);
+      int nseq = msa_seqs.size()/N;
+      std::cout << nseq << " sequences" << std::endl;
+      std::vector<double> weights = get_weights(msa_seqs, nseq, delta);
+      fill_freq(msa_seqs, weights, msa_freq, msa_corr, nseq, symmetrize_on);
+    }
+    msa_freq.save(scratch_dir + "stat_align_1p.txt", arma::arma_ascii);
+    msa_corr.save(scratch_dir + "stat_align_2p.txt", arma::arma_ascii);
   }
-  std::string msa_stats_2 = scratch_dir + "/stat_align_2p.txt";
-  msa_freq.save(scratch_dir + "stat_align_1p.txt", arma::arma_ascii);
-  msa_corr.save(scratch_dir + "stat_align_2p.txt", arma::arma_ascii);
 
   //Initialize parameters
   if(input_name=="none") init_default(model, msa_freq);
@@ -227,6 +245,10 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
   while(!converged){
 
     std::cout << std::endl << "iteration " << niter << std::endl;
+    //Print current parameters to file
+    print_params(mymodel,output_dir + "params_curr.txt");
+    mymodel.mom1.save(scratch_dir + "stat_MC_1p_curr.txt", arma::arma_ascii);
+    mymodel.mom2.save(scratch_dir + "stat_MC_2p_curr.txt", arma::arma_ascii);
 
     run_mc_traj(mymodel,mc_steps,nr);
 
@@ -273,7 +295,6 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
         }
       }
       dJ -= 2*mymodel.lambda*dmat;
-      //INSERT CODE HERE
     }
 
     change_h = gamma_mom*change_h + alpha_h%dh;
@@ -336,7 +357,6 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
     //Update parameters
     mymodel.h += change_h;
     mymodel.J += change_J;
-
 
     //Update learning rates **MAKE THIS INTO A SEPARATE FUNCTION**
     if(adaptive_stepsize_on){
@@ -410,6 +430,7 @@ void read_inputs(std::string name){
       std::string key = line.substr(0,index);
       std::cout << key << " " << value << std::endl;
       if(key.compare("msa_name")==0) msa_name = value;
+      if(key.compare("freq_dir")==0) freq_dir = value;
       if(key.compare("out_name")==0) out_name = value;
       if(key.compare("input_name")==0) input_name = value;
       if(key.compare("folder_name")==0) folder_name = value;
