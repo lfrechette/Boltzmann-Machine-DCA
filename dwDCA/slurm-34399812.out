@@ -1,0 +1,328 @@
+INPUT PARAMETERS:
+msa_name msa/msa_g.fas
+out_name g_params.txt
+folder_name g
+scratch_dir /data/frechettelb/protein_evolution/dwdca/data/
+input_name none
+lambda 1.0
+myseed 1
+max_iter 1000
+mc_steps 10000
+mc_init random
+eps0_h 0.01
+eps0_J 0.001
+adaptive_stepsize_on 1
+adaptive_sampling_on 1
+eps_inc 1.5
+eps_dec 0.6
+eps_min_h 0.001
+eps_max_h 2.5
+eps_min_J 0.00001
+eps_max_J_N 2.5
+gamma 0.1
+cutoff_freq 0.01
+delta 0.2
+nwell 2
+param_init half
+symmetrize_on 0
+verbose 0
+nrep 1
+Tmix 1
+reg_type 2
+
+msa/msa_g.fas
+No. of sequences: 1911
+Sequence length: 56
+1911 sequences
+Tmix: 1
+random
+/data/frechettelb/protein_evolution/dwDCA/data/g/param_init=half_lambda=1.000000_as_al_gamma=0.100000_cutoff_freq=0.010000/
+Constructing sequence weights...
+Computed weights. Meff=1458.34
+1911
+Checking Meff: 1458.34
+HALF
+Fitting model.
+
+iteration 0
+Number of threads allocated = 1
+Avg. energy: 54.3537
+RMS of dh1, dJ1: 15.4034 0.00658794
+Max of dh1, dJ1: 36.8414 0.473156
+RMS of dh2, dJ2: 15.9079 0.00582208
+Max of dh2, dJ2: 36.8414 0.454058
+
+iteration 1
+Number of threads allocated = 1
+Avg. energy: 53.9377
+RMS of dh1, dJ1: 14.7868 0.00635769
+Max of dh1, dJ1: 35.3677 0.470643
+RMS of dh2, dJ2: 15.2716 0.00586198
+Max of dh2, dJ2: 35.3677 0.457063
+
+iteration 2
+Number of threads allocated = 1
+Avg. energy: 52.3607
+RMS of dh1, dJ1: 13.8374 0.00616966
+Max of dh1, dJ1: 33.0983 0.453502
+RMS of dh2, dJ2: 14.2918 0.00592329
+Max of dh2, dJ2: 33.0983 0.461666
+
+iteration 3
+Number of threads allocated = 1
+Avg. energy: 49.24
+RMS of dh1, dJ1: 12.5099 0.00673513
+Max of dh1, dJ1: 29.8926 0.486971
+RMS of dh2, dJ2: 12.8946 0.00557254
+Max of dh2, dJ2: 29.8925 0.424268
+
+iteration 4
+Number of threads allocated = 1
+Avg. energy: 45.7518
+RMS of dh1, dJ1: 10.6873 0.00691463
+Max of dh1, dJ1: 25.5366 0.499777
+RMS of dh2, dJ2: 11.0141 0.00520695
+Max of dh2, dJ2: 25.5364 0.401077
+
+iteration 5
+Number of threads allocated = 1
+Avg. energy: 40.5896
+RMS of dh1, dJ1: 8.34075 0.00723255
+Max of dh1, dJ1: 19.9298 0.52647
+RMS of dh2, dJ2: 8.59408 0.00463911
+Max of dh2, dJ2: 19.9289 0.354323
+
+iteration 6
+Number of threads allocated = 1
+Avg. energy: 32.7909
+RMS of dh1, dJ1: 5.55814 0.00742473
+Max of dh1, dJ1: 13.3126 0.56915
+RMS of dh2, dJ2: 5.75241 0.0037912
+Max of dh2, dJ2: 13.3158 0.303832
+
+iteration 7
+Number of threads allocated = 1
+Avg. energy: 19.859
+RMS of dh1, dJ1: 2.7495 0.00828566
+Max of dh1, dJ1: 6.57933 0.616678
+RMS of dh2, dJ2: 2.84135 0.00284481
+Max of dh2, dJ2: 6.58465 0.223458
+
+iteration 8
+Number of threads allocated = 1
+Avg. energy: 4.29708
+RMS of dh1, dJ1: 0.592965 0.00998525
+Max of dh1, dJ1: 1.40913 0.744646
+RMS of dh2, dJ2: 0.603102 0.00104689
+Max of dh2, dJ2: 1.40474 0.0651891
+
+iteration 9
+Number of threads allocated = 1
+Avg. energy: -2.92272
+RMS of dh1, dJ1: 0.232873 0.0104098
+Max of dh1, dJ1: 0.748787 0.767689
+RMS of dh2, dJ2: 0.240282 0.0011905
+Max of dh2, dJ2: 0.559782 0.0668476
+
+iteration 10
+Number of threads allocated = 1
+Avg. energy: -0.563591
+RMS of dh1, dJ1: 0.046123 0.00916815
+Max of dh1, dJ1: 0.550049 0.647992
+RMS of dh2, dJ2: 0.047934 0.00102041
+Max of dh2, dJ2: 0.112317 0.0644028
+
+iteration 11
+Number of threads allocated = 1
+Avg. energy: -0.679006
+RMS of dh1, dJ1: 0.0340388 0.00787606
+Max of dh1, dJ1: 0.319971 0.572113
+RMS of dh2, dJ2: 0.0325852 0.000946911
+Max of dh2, dJ2: 0.0791404 0.0577197
+
+iteration 12
+Number of threads allocated = 1
+Avg. energy: -0.907477
+RMS of dh1, dJ1: 0.0149356 0.00678392
+Max of dh1, dJ1: 0.113969 0.537747
+RMS of dh2, dJ2: 0.0139212 0.00081667
+Max of dh2, dJ2: 0.0338099 0.0490383
+
+iteration 13
+Number of threads allocated = 1
+Avg. energy: -1.06336
+RMS of dh1, dJ1: 0.00620905 0.00582211
+Max of dh1, dJ1: 0.0332142 0.490136
+RMS of dh2, dJ2: 0.00251278 0.000691147
+Max of dh2, dJ2: 0.0234497 0.0395198
+
+iteration 14
+Number of threads allocated = 1
+Avg. energy: -1.0862
+RMS of dh1, dJ1: 0.00466538 0.00491236
+Max of dh1, dJ1: 0.0274758 0.422346
+RMS of dh2, dJ2: 0.00220198 0.00060047
+Max of dh2, dJ2: 0.0204177 0.0309704
+
+iteration 15
+Number of threads allocated = 1
+Avg. energy: -1.10719
+RMS of dh1, dJ1: 0.0039156 0.00399624
+Max of dh1, dJ1: 0.0180073 0.338674
+RMS of dh2, dJ2: 0.00231776 0.00050612
+Max of dh2, dJ2: 0.0178147 0.0247514
+
+iteration 16
+Number of threads allocated = 1
+Avg. energy: -1.10978
+RMS of dh1, dJ1: 0.00370102 0.0032585
+Max of dh1, dJ1: 0.022935 0.26937
+RMS of dh2, dJ2: 0.00157018 0.000447532
+Max of dh2, dJ2: 0.0157071 0.0199212
+
+iteration 17
+Number of threads allocated = 1
+Avg. energy: -1.161
+RMS of dh1, dJ1: 0.00387325 0.00263602
+Max of dh1, dJ1: 0.0161468 0.216152
+RMS of dh2, dJ2: 0.00155682 0.00037126
+Max of dh2, dJ2: 0.0117511 0.0158946
+
+iteration 18
+Number of threads allocated = 1
+Avg. energy: -1.16596
+RMS of dh1, dJ1: 0.00362585 0.00213707
+Max of dh1, dJ1: 0.0192685 0.182157
+RMS of dh2, dJ2: 0.00170915 0.000328551
+Max of dh2, dJ2: 0.0172967 0.0125095
+
+iteration 19
+Number of threads allocated = 1
+Avg. energy: -1.14489
+RMS of dh1, dJ1: 0.00403146 0.00173901
+Max of dh1, dJ1: 0.0382351 0.151821
+RMS of dh2, dJ2: 0.00135942 0.000295369
+Max of dh2, dJ2: 0.00879495 0.00991643
+Std. errors: 0.00973715 0.00175353
+Model difference is within sampling error. Increasing sampling...
+MC steps per iteration: 20000
+
+iteration 20
+Number of threads allocated = 1
+Avg. energy: -1.18099
+RMS of dh1, dJ1: 0.00489993 0.00136986
+Max of dh1, dJ1: 0.0640353 0.122082
+RMS of dh2, dJ2: 0.00134889 0.000232452
+Max of dh2, dJ2: 0.0127101 0.00795365
+
+iteration 21
+Number of threads allocated = 1
+Avg. energy: -1.17464
+RMS of dh1, dJ1: 0.00687615 0.0011097
+Max of dh1, dJ1: 0.146515 0.096922
+RMS of dh2, dJ2: 0.00107646 0.000208097
+Max of dh2, dJ2: 0.0108497 0.00624451
+Std. errors: 0.00699334 0.00124395
+Model difference is within sampling error. Increasing sampling...
+MC steps per iteration: 40000
+
+iteration 22
+Number of threads allocated = 1
+Avg. energy: -1.18934
+RMS of dh1, dJ1: 0.00624776 0.00088232
+Max of dh1, dJ1: 0.132452 0.0767294
+RMS of dh2, dJ2: 0.000954621 0.000160462
+Max of dh2, dJ2: 0.0101352 0.00491498
+
+iteration 23
+Number of threads allocated = 1
+Avg. energy: -1.17776
+RMS of dh1, dJ1: 0.00172821 0.000717876
+Max of dh1, dJ1: 0.0134901 0.0611221
+RMS of dh2, dJ2: 0.000713571 0.000143874
+Max of dh2, dJ2: 0.0073485 0.0040013
+Std. errors: 0.00491427 0.000878546
+Model difference is within sampling error. Increasing sampling...
+MC steps per iteration: 80000
+
+iteration 24
+Number of threads allocated = 1
+Avg. energy: -1.18122
+RMS of dh1, dJ1: 0.00149235 0.000570333
+Max of dh1, dJ1: 0.0147504 0.0481384
+RMS of dh2, dJ2: 0.000611215 0.000113791
+Max of dh2, dJ2: 0.00751325 0.00308402
+Std. errors: 0.00347857 0.000621452
+Model difference is within sampling error. Increasing sampling...
+MC steps per iteration: 160000
+
+iteration 25
+Number of threads allocated = 1
+Avg. energy: -1.18881
+RMS of dh1, dJ1: 0.0011033 0.000454199
+Max of dh1, dJ1: 0.0103825 0.0382311
+RMS of dh2, dJ2: 0.000411294 9.0085e-05
+Max of dh2, dJ2: 0.00288231 0.00246817
+
+iteration 26
+Number of threads allocated = 1
+Avg. energy: -1.19041
+RMS of dh1, dJ1: 0.000869105 0.000370535
+Max of dh1, dJ1: 0.00425741 0.0311823
+RMS of dh2, dJ2: 0.000397185 7.85762e-05
+Max of dh2, dJ2: 0.00671093 0.00209092
+Std. errors: 0.00243286 0.000439083
+Model difference is within sampling error. Increasing sampling...
+MC steps per iteration: 320000
+
+iteration 27
+Number of threads allocated = 1
+Avg. energy: -1.1905
+RMS of dh1, dJ1: 0.00067965 0.000296195
+Max of dh1, dJ1: 0.00560984 0.0241491
+RMS of dh2, dJ2: 0.000390139 6.29294e-05
+Max of dh2, dJ2: 0.00934657 0.00159104
+Std. errors: 0.00172385 0.000310556
+Model difference is within sampling error. Increasing sampling...
+MC steps per iteration: 640000
+
+iteration 28
+Number of threads allocated = 1
+Avg. energy: -1.18707
+RMS of dh1, dJ1: 0.000510193 0.000238939
+Max of dh1, dJ1: 0.00227419 0.0192956
+RMS of dh2, dJ2: 0.000284753 5.13354e-05
+Max of dh2, dJ2: 0.00587422 0.00127711
+
+iteration 29
+Number of threads allocated = 1
+Avg. energy: -1.19368
+RMS of dh1, dJ1: 0.000435358 0.000193922
+Max of dh1, dJ1: 0.00254853 0.0153954
+RMS of dh2, dJ2: 0.000281332 4.27525e-05
+Max of dh2, dJ2: 0.00642194 0.00102598
+Std. errors: 0.00122605 0.000219676
+Model difference is within sampling error. Increasing sampling...
+MC steps per iteration: 1280000
+
+iteration 30
+Number of threads allocated = 1
+Avg. energy: -1.19192
+RMS of dh1, dJ1: 0.000345547 0.000156348
+Max of dh1, dJ1: 0.00209924 0.0122801
+RMS of dh2, dJ2: 0.000216202 3.51827e-05
+Max of dh2, dJ2: 0.00555393 0.000801933
+
+iteration 31
+Number of threads allocated = 1
+Avg. energy: -1.19136
+RMS of dh1, dJ1: 0.000311796 0.000128875
+Max of dh1, dJ1: 0.00157582 0.00962736
+RMS of dh2, dJ2: 0.000187639 3.01677e-05
+Max of dh2, dJ2: 0.00478902 0.000645519
+Converged!
+RMS of dh1, dJ1, dh2, dJ2: 0.000311796 0.000128875 0.000187639 3.01677e-05
+Max of |dh1|, |dJ1|, |dh2|, |dJ2|: 0.00157582 0.00962736 0.00478902 0.000645519
+Std. errors: 0.000869677 0.000155437
+Model difference is within sampling error. Increasing sampling...
+MC steps per iteration: 2560000

@@ -112,6 +112,7 @@ int main(int argc, char *argv[]){
   if(reg_type!=2) folder_name += "_reg_type=" + std::to_string(reg_type);
   if(nrep!=1) folder_name += "_nrep=" + std::to_string(nrep);
   if(Tmix!=1.0) folder_name += "_Tmix=" + std::to_string(Tmix);
+  if(cutoff_freq!=0.05) folder_name += "_cutoff_freq=" + std::to_string(cutoff_freq);
 
   output_dir += folder_name + "/";
   scratch_dir += folder_name + "/";
@@ -506,6 +507,9 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, std::vector<
     
     niter++;
   }
+
+  mymodel.mom1.save(scratch_dir + "stat_MC_1p.txt", arma::arma_ascii);
+  mymodel.mom2.save(scratch_dir + "stat_MC_2p.txt",arma::arma_ascii);
 
   //Dump energies to file
   avg_energies.save(output_dir + "avg_ene.txt", arma::arma_ascii);

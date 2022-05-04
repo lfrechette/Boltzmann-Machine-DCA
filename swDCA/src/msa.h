@@ -14,13 +14,17 @@ int letter_to_number(char a, int q);
 
 std::string number_to_letter(int a, int q);
 
+void read_Nq(std::string msafile, int *N, int *q);
+
 /** Read in an MSA and convert to ints.
  * @param msafile, Name of the MSA file.
  * @param *N, Pointer to sequence length.
  * @param *q, Pointer to number of states. */
-std::vector<int> read_msa(std::string msafile, int *N, int *q);
+std::vector<int> read_msa(std::string msafile, int N, int q);
 
 std::vector<double> get_weights(std::vector<int> &msa_seqs, int nseq, double delta);
+
+void lowmem_fill_freq(std::string msafile, arma::mat &msa_freq, arma::cube &msa_corr, int N);
 
 /** Compute single-site frequencies and pair correlations in MSA.
  * @param msa_seqs, Vector of MSA sequences.
