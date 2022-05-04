@@ -370,6 +370,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
           if(alpha_h(i,a)<eps_min_h) alpha_h(i,a)=eps_min_h;
         }
       }
+
       for(int i=0; i<mymodel.N-1; i++){
         for(int j=i+1; j<mymodel.N; j++){ 
           int index = (mymodel.N-1)*i-i*(i+1)/2+j-1;
@@ -386,6 +387,7 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
         }
       }
     }
+
 
     //Update previous step gradient
     dh_prev = dh;
