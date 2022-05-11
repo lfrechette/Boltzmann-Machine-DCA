@@ -33,8 +33,10 @@ std::string conf_name;
 std::string mc_init;
 
 std::string scratch_dir;
+std::string scratch_dir_orig;
 std::string output_dir;
 std::string folder_name;
+std::string folder_name_orig;
 
 gsl_rng *rg;
 gsl_rng **rg_replica;
@@ -53,6 +55,7 @@ double eps_max_J_N;
 double lambda;
 double gamma_mom;
 double cutoff_freq;
+double cutoff_rmsd=2e-3;
 bool adaptive_stepsize_on;
 bool adaptive_sampling_on;
 bool symmetrize_on; 
@@ -60,7 +63,11 @@ bool verbose;
 double delta=0.2; //reweighting threshold
 int do_lowmem_fill=0;
 std::string reg_type="L2";
+std::string conv_type="rmsd";
 long unsigned int myseed;
+int record_freq=10;
+int num_restarts=0;
+bool is_restart=0;
 
 /*** Main ***/
 int main(int argc, char *argv[]){
@@ -82,6 +89,8 @@ int main(int argc, char *argv[]){
     exit(-1);
   }
 
+  if(num_restarts!=0) is_restart=1;
+
   //Set up random number generator
   init_rng(myseed);
   
@@ -93,20 +102,29 @@ int main(int argc, char *argv[]){
   read_Nq(msa_name, &N, &q);
   model model(N, q, lambda, symmetrize_on, mc_init);
   std::cout << model.mc_init << std::endl;
+  std::cout << "conv type: " << conv_type << std::endl;
   arma::mat msa_freq(model.N,model.q,arma::fill::ones);
   arma::cube msa_corr(model.q, model.q, model.N*(model.N-1)/2,arma::fill::zeros);
   msa_freq = msa_freq/21.0;
 
   //Define data output directory
+  folder_name_orig = folder_name;
+  scratch_dir_orig = scratch_dir;
   output_dir = "data/";
   folder_name += "/lambda=" + std::to_string(lambda);
+  folder_name += "_mc_steps_init=" + std::to_string(mc_steps);
   if(adaptive_sampling_on) folder_name += "_as";
   if(adaptive_stepsize_on) folder_name += "_al";
   if(gamma_mom>0.0) folder_name += "_gamma=" + std::to_string(gamma_mom);
   if(reg_type!="L2") folder_name += "_reg_type=" + reg_type;
   if(nrep!=1) folder_name += "_nrep=" + std::to_string(nrep);
-  if(cutoff_freq!=0.05) folder_name += "_cutoff_freq=" + std::to_string(cutoff_freq);
-  if(input_name!="none"){
+  if(conv_type=="max"){
+    folder_name += "_cutoff_freq=" + std::to_string(cutoff_freq);
+  }
+  else if(conv_type=="rmsd"){
+    folder_name += "_cutoff_rmsd=" + std::to_string(cutoff_rmsd);
+  }
+  if(input_name!="none" && !(is_restart)){
     int index1 = input_name.find_last_of("/");
     std::string thefile = input_name.substr(index1+1);
     int index2 = thefile.find(".");
@@ -114,6 +132,9 @@ int main(int argc, char *argv[]){
     std::cout << "check: " << thename << std::endl;
 
     folder_name += "_input=" + thename;
+  }  
+  if(is_restart){
+    folder_name += "_restart" + std::to_string(num_restarts);
   }
 
   output_dir += folder_name + "/";
@@ -148,7 +169,8 @@ int main(int argc, char *argv[]){
 
   //Initialize parameters
   if(input_name=="none") init_default(model, msa_freq);
-  else read_params(model,input_name); 
+  else if(!(is_restart)) read_params(model,input_name);
+  else read_params(model,input_name + "/params_curr.txt");
 
   /***TEST FOR SW TOY MODEL---MOVE TO A TEST FILE***/
 
@@ -172,6 +194,7 @@ int main(int argc, char *argv[]){
   }
 
   //Run DCA
+  num_restarts += 1;
   fit(model,msa_freq,msa_corr,nrep);
 
   if(model.N==2){
@@ -182,7 +205,8 @@ int main(int argc, char *argv[]){
   }
 
   //Ensure parameters are in zero-sum gauge
-  //model.convert_to_zero_sum();
+  /*
+  model.convert_to_zero_sum();
 
   if(model.N==2){
     std::cout << "After zero-sum conversion:" << std::endl;
@@ -191,9 +215,10 @@ int main(int argc, char *argv[]){
     std::cout << "J:" << std::endl;
     std::cout << model.J << std::endl;
   }
+  */
 
   //Print parameters to file
-  print_params(model,output_dir+out_name);
+  write_params(model,output_dir+out_name);
   
   return 1;
 }
@@ -240,21 +265,40 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
   //Cross entropy
   arma::vec entropy(max_iter, arma::fill::zeros);
 
+  /* Check whether this run is a restart. If so,
+   * read in values of arma objects.
+   */
+  if(is_restart){
+    alpha_h.load(input_name + "/alpha_h_curr.txt", arma::arma_ascii);
+    alpha_J.load(input_name + "/alpha_J_curr.txt", arma::arma_ascii);
+    dh_prev.load(input_name + "/dh_prev_curr.txt", arma::arma_ascii);
+    dJ_prev.load(input_name + "/dJ_prev_curr.txt", arma::arma_ascii);   
+    change_h.load(input_name + "/change_h_curr.txt", arma::arma_ascii);
+    change_J.load(input_name + "/change_J_curr.txt", arma::arma_ascii);
+  }
+
   //Fit
   std::cout << "Fitting model." << std::endl;
   while(!converged){
 
     std::cout << std::endl << "iteration " << niter << std::endl;
     //Print current parameters to file
-    print_params(mymodel,output_dir + "params_curr.txt");
+    write_params(mymodel,scratch_dir + "params_curr.txt");
     mymodel.mom1.save(scratch_dir + "stat_MC_1p_curr.txt", arma::arma_ascii);
     mymodel.mom2.save(scratch_dir + "stat_MC_2p_curr.txt", arma::arma_ascii);
+    alpha_h.save(scratch_dir + "alpha_h_curr.txt", arma::arma_ascii);
+    alpha_J.save(scratch_dir + "alpha_J_curr.txt", arma::arma_ascii);
+    dh_prev.save(scratch_dir + "dh_prev_curr.txt", arma::arma_ascii);
+    dJ_prev.save(scratch_dir + "dJ_prev_curr.txt", arma::arma_ascii);   
+    change_h.save(scratch_dir + "change_h_curr.txt", arma::arma_ascii);
+    change_J.save(scratch_dir + "change_J_curr.txt", arma::arma_ascii);
+    write_restart(mymodel,output_dir + "restart.conf");    
 
     run_mc_traj(mymodel,mc_steps,nr);
 
     avg_energies[niter] = mymodel.avg_ene;
     std::cout << "Avg. energy: " << avg_energies[niter] << std::endl;
-    print_seqs(mymodel, scratch_dir + "seqs_" + std::to_string(niter) + ".txt");
+    write_seqs(mymodel, scratch_dir + "seqs_" + std::to_string(niter) + ".txt");
 
     /*** Compute derivatives ***/
     dh = msa_freq-mymodel.mom1;
@@ -301,9 +345,9 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
     change_J = gamma_mom*change_J + alpha_J%dJ;
 
     //Dump derivatives to file
-    if (verbose) {
-	    dh.save(scratch_dir + "dh_" + std::to_string(niter) + ".txt", arma::arma_ascii);
-	    dJ.save(scratch_dir + "dJ_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+    if(verbose && niter%record_freq==0){
+	  dh.save(scratch_dir + "dh_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+	  dJ.save(scratch_dir + "dJ_" + std::to_string(niter) + ".txt", arma::arma_ascii);
     }
 
     //Compute RMS difference between MSA and MC
@@ -328,17 +372,19 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
       std::cout << mymodel.mom2 << std::endl;
     }
 
-    if(niter>max_iter || (max1<cutoff_freq && max2<cutoff_freq)){
+    if(niter>max_iter ||
+      (conv_type=="max" && max1<cutoff_freq && max2<cutoff_freq) ||
+      (conv_type=="rmsd" && (diff1+diff2)<cutoff_rmsd)
+      ){
       std::cout << "Converged!" << std::endl;
-      std::cout << "RMS of dh, dJ: " << diff1 << " " << diff2 << std::endl;
+      std::cout << "RMS of dh, dJ, tot: " << diff1 << " " << diff2 << " " << diff1+diff2 << std::endl;
       std::cout << "Max of |dh|, |dJ|: " << max1 << " " << max2 << std::endl;
       converged=true;
     }
 
     if(adaptive_sampling_on){
-      //Increase amount of sampling if derivatives are within
+      //Increase amount of sampling if rms derivatives are within
       //standard error of MC sampling.
-      //(Could also do this based on max error.)
       if(diff1<mymodel.mom1_err && diff2<mymodel.mom2_err){
         std::cout << "Std. errors: " << mymodel.mom1_err << " " << mymodel.mom2_err << std::endl;
         std::cout << "Model difference is within sampling error. Increasing sampling..." << std::endl;
@@ -347,11 +393,11 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
       }
     }
     //Dump current statistics and parameters to file
-    if (verbose) {
-	    mymodel.mom1.save(scratch_dir + "stat_MC_1p_" + std::to_string(niter) + ".txt", arma::arma_ascii);
-	    mymodel.mom2.save(scratch_dir + "stat_MC_2p_" + std::to_string(niter) + ".txt",arma::arma_ascii);
-	    mymodel.h.save(scratch_dir + "h_" + std::to_string(niter) + ".txt", arma::arma_ascii);
-	    mymodel.J.save(scratch_dir + "J_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+    if(verbose && niter%record_freq==0){
+	  mymodel.mom1.save(scratch_dir + "stat_MC_1p_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+	  mymodel.mom2.save(scratch_dir + "stat_MC_2p_" + std::to_string(niter) + ".txt",arma::arma_ascii);
+	  mymodel.h.save(scratch_dir + "h_" + std::to_string(niter) + ".txt", arma::arma_ascii);
+	  mymodel.J.save(scratch_dir + "J_" + std::to_string(niter) + ".txt", arma::arma_ascii);
     }    
 
     //Update parameters
@@ -402,8 +448,8 @@ void fit(model &mymodel, arma::mat &msa_freq, arma::cube &msa_corr, int nr){
     niter++;
   }
 
-  mymodel.mom1.save(scratch_dir + "stat_MC_1p.txt", arma::arma_ascii);
-  mymodel.mom2.save(scratch_dir + "stat_MC_2p.txt",arma::arma_ascii);
+  mymodel.mom1.save(output_dir + "stat_MC_1p.txt", arma::arma_ascii);
+  mymodel.mom2.save(output_dir + "stat_MC_2p.txt",arma::arma_ascii);
 
   //Dump energies to file
   avg_energies.save(output_dir + "avg_ene.txt", arma::arma_ascii);
@@ -451,17 +497,61 @@ void read_inputs(std::string name){
       if(key.compare("eps_max_J_N")==0) eps_max_J_N = std::stof(value);
       if(key.compare("gamma")==0) gamma_mom = std::stof(value);
       if(key.compare("cutoff_freq")==0) cutoff_freq = std::stof(value);
+      if(key.compare("cutoff_rmsd")==0) cutoff_rmsd = std::stof(value);
       if(key.compare("delta")==0) delta = std::stof(value);
       if(key.compare("do_lowmem_fill")==0) do_lowmem_fill = std::stoi(value);
       if(key.compare("mc_init")==0) mc_init = value;
       if(key.compare("symmetrize_on")==0) symmetrize_on = std::stoi(value);
       if(key.compare("nrep")==0) nrep = std::stoi(value);
-      if(key.compare("verbose")==0) verbose=std::stoi(value);
+      if(key.compare("verbose")==0) verbose = std::stoi(value);
+      if(key.compare("record_freq")==0) record_freq = std::stoi(value);
       if(key.compare("reg_type")==0) reg_type = value;
+      if(key.compare("conv_type")==0) conv_type = value;
+      if(key.compare("num_restarts")==0) num_restarts = std::stoi(value);
     }
     std::cout << std::endl;
     file.close();
   }  
+}
+
+void write_restart(model &mymodel, std::string name){
+
+  std::ofstream ofile;
+  ofile.open(name);
+  ofile << "msa_name:" << msa_name << std::endl;
+  ofile << "freq_dir:" << freq_dir << std::endl;
+  ofile << "out_name:" << out_name << std::endl; //modify this
+  ofile << "input_name:" << scratch_dir << std::endl; //for restart file, input_name is a directory
+  ofile << "folder_name:" << folder_name_orig << std::endl;
+  ofile << "scratch_dir:" << scratch_dir_orig << std::endl;
+  ofile << "lambda:" << mymodel.lambda << std::endl;
+  ofile << "myseed:" << myseed << std::endl;
+  ofile << "max_iter:" << max_iter << std::endl;
+  ofile << "mc_steps:" << mc_steps << std::endl;
+  ofile << "eps0_h:" << eps0_h << std::endl;
+  ofile << "eps0_J:" << eps0_J << std::endl;
+  ofile << "adaptive_stepsize_on:" << adaptive_stepsize_on << std::endl;
+  ofile << "adaptive_sampling_on:" << adaptive_sampling_on << std::endl;
+  ofile << "eps_inc:" << eps_inc << std::endl;
+  ofile << "eps_dec:" << eps_dec << std::endl;
+  ofile << "eps_min_h:" << eps_min_h << std::endl;
+  ofile << "eps_max_h:" << eps_max_h << std::endl;
+  ofile << "eps_min_J:" << eps_min_J << std::endl;
+  ofile << "eps_max_J_N:" << eps_max_J_N << std::endl;
+  ofile << "gamma:" << gamma_mom << std::endl;
+  ofile << "cutoff_freq:" << cutoff_freq << std::endl;
+  ofile << "cutoff_rmsd:" << cutoff_rmsd << std::endl;
+  ofile << "delta:" << delta << std::endl;
+  ofile << "do_lowmem_fill:" << do_lowmem_fill << std::endl;
+  ofile << "mc_init:" << mc_init << std::endl;
+  ofile << "symmetrize_on:" << symmetrize_on << std::endl;
+  ofile << "nrep:" << nrep << std::endl;
+  ofile << "verbose:" << verbose << std::endl;
+  ofile << "record_freq:" << record_freq << std::endl;
+  ofile << "reg_type:" << reg_type << std::endl;
+  ofile << "conv_type:" << conv_type << std::endl;
+  ofile << "num_restarts:" << num_restarts << std::endl;
+  ofile.close();
 }
 
 void read_params(model &mymodel, std::string in_name){
@@ -502,7 +592,7 @@ void read_params(model &mymodel, std::string in_name){
   }
 }
 
-void print_params(model &mymodel, std::string name){
+void write_params(model &mymodel, std::string name){
 
   std::ofstream ofile;
   ofile.open(name);
@@ -525,7 +615,7 @@ void print_params(model &mymodel, std::string name){
   ofile.close();
 }
 
-void print_seqs(model &mymodel, std::string name){
+void write_seqs(model &mymodel, std::string name){
 
   std::ofstream ofile;
   ofile.open(name);

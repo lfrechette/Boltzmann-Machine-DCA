@@ -13,9 +13,11 @@ void read_inputs(std::string in_name);
 
 void read_params(model &mymodel, std::string in_name);
 
-void print_params(model &mymodel, std::string out_name);
+void write_params(model &mymodel, std::string out_name);
 
-void print_seqs(model &mymodel, std::string out_name);
+void write_restart(model &mymodel, std::string out_name);
+
+void write_seqs(model &mymodel, std::string out_name);
 
 arma::mat get_norm(model &mymodel);
 
